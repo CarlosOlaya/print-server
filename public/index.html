@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🖨️ Foodly Print Server</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0e1a;
+            --bg-card: #111827;
+            --bg-card-hover: #1a2234;
+            --border: #1e293b;
+            --cyan: #00e5c6;
+            --cyan-dim: rgba(0, 229, 198, 0.15);
+            --green: #22c55e;
+            --green-dim: rgba(34, 197, 94, 0.15);
+            --red: #ef4444;
+            --red-dim: rgba(239, 68, 68, 0.15);
+            --yellow: #f59e0b;
+            --yellow-dim: rgba(245, 158, 11, 0.15);
+            --purple: #a855f7;
+            --purple-dim: rgba(168, 85, 247, 0.15);
+            --blue: #3b82f6;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* ── Header ── */
+        .header {
+            background: linear-gradient(135deg, #111827 0%, #0f172a 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-logo {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--cyan), #00b4d8);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .header h1 span {
+            color: var(--text-muted);
+            font-weight: 400;
+            font-size: 14px;
+        }
+
+        .connection-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .connection-badge.online {
+            background: var(--green-dim);
+            color: var(--green);
+        }
+
+        .connection-badge.offline {
+            background: var(--red-dim);
+            color: var(--red);
+        }
+
+        .connection-badge .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .connection-badge.online .dot {
+            background: var(--green);
+        }
+
+        .connection-badge.offline .dot {
+            background: var(--red);
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        /* ── Layout ── */
+        .main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+            display: grid;
+            gap: 20px;
+        }
+
+        /* ── Status Bar ── */
+        .status-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-card .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .stat-card .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ── Printers Section ── */
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title .material-icons-round {
+            font-size: 20px;
+            color: var(--cyan);
+        }
+
+        .printers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 16px;
+        }
+
+        .printer-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .printer-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--cyan);
+        }
+
+        .printer-card-header {
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .printer-area {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .printer-area-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+
+        .printer-area-icon.cocina {
+            background: var(--red-dim);
+            color: var(--red);
+        }
+
+        .printer-area-icon.bar {
+            background: var(--purple-dim);
+            color: var(--purple);
+        }
+
+        .printer-area-icon.caja {
+            background: var(--green-dim);
+            color: var(--green);
+        }
+
+        .printer-area-name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .printer-area-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .printer-status-badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-ok {
+            background: var(--green-dim);
+            color: var(--green);
+        }
+
+        .badge-none {
+            background: var(--yellow-dim);
+            color: var(--yellow);
+        }
+
+        .badge-error {
+            background: var(--red-dim);
+            color: var(--red);
+        }
+
+        .printer-card-body {
+            padding: 16px 20px;
+        }
+
+        .printer-config {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .config-field label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .config-field input,
+        .config-field select {
+            width: 100%;
+            padding: 8px 10px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .config-field input:focus,
+        .config-field select:focus {
+            border-color: var(--cyan);
+        }
+
+        .config-field select {
+            cursor: pointer;
+        }
+
+        .config-field select option {
+            background: var(--bg-dark);
+        }
+
+        .printer-card-actions {
+            padding: 12px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn .material-icons-round {
+            font-size: 16px;
+        }
+
+        .btn-primary {
+            background: var(--cyan);
+            color: #0a0e1a;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.85;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--cyan);
+            color: var(--cyan);
+        }
+
+        .btn-save {
+            background: var(--green);
+            color: #fff;
+            margin-left: auto;
+        }
+
+        /* ── Log Section ── */
+        .log-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .log-header {
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .log-header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+
+        .log-container {
+            max-height: 360px;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+
+        .log-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .log-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .log-container::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .log-entry {
+            padding: 6px 20px;
+            font-size: 13px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            display: flex;
+            gap: 10px;
+            border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+            transition: background 0.15s;
+        }
+
+        .log-entry:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .log-entry.new {
+            animation: flashGreen 1s ease-out;
+        }
+
+        @keyframes flashGreen {
+            0% {
+                background: var(--green-dim);
+            }
+
+            100% {
+                background: transparent;
+            }
+        }
+
+        .log-time {
+            color: var(--text-muted);
+            min-width: 65px;
+        }
+
+        .log-msg {
+            color: var(--text-secondary);
+            word-break: break-word;
+        }
+
+        .log-entry.error .log-msg {
+            color: var(--red);
+        }
+
+        .log-entry.success .log-msg {
+            color: var(--green);
+        }
+
+        .log-entry.info .log-msg {
+            color: var(--cyan);
+        }
+
+        .log-entry.warn .log-msg {
+            color: var(--yellow);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+
+        .empty-state .material-icons-round {
+            font-size: 48px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--green);
+            border-radius: 12px;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast .material-icons-round {
+            color: var(--green);
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .main {
+                padding: 16px;
+            }
+
+            .printers-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .status-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .printer-config {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="header-logo">🖨️</div>
+            <h1>Foodly Print Server <span>v2.0</span></h1>
+        </div>
+        <div id="connectionBadge" class="connection-badge offline">
+            <div class="dot"></div>
+            <span id="connectionText">Desconectado</span>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main class="main">
+
+        <!-- Status Cards -->
+        <div class="status-bar">
+            <div class="stat-card">
+                <div class="stat-value" id="statUptime">0s</div>
+                <div class="stat-label">Tiempo activo</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" style="color:var(--cyan)" id="statComandas">0</div>
+                <div class="stat-label">Comandas impresas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" style="color:var(--green)" id="statFacturas">0</div>
+                <div class="stat-label">Facturas impresas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" style="color:var(--yellow)" id="statErrors">0</div>
+                <div class="stat-label">Errores</div>
+            </div>
+        </div>
+
+        <!-- Printers -->
+        <div>
+            <div class="section-title">
+                <span class="material-icons-round">print</span>
+                Impresoras configuradas
+            </div>
+            <div class="printers-grid" id="printersGrid">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Logs -->
+        <div class="log-section">
+            <div class="log-header">
+                <div class="log-header-left">
+                    <span class="material-icons-round" style="color:var(--cyan)">terminal</span>
+                    Registro de actividad
+                </div>
+                <button class="btn btn-outline" onclick="clearLogs()">
+                    <span class="material-icons-round">delete_sweep</span>
+                    Limpiar
+                </button>
+            </div>
+            <div class="log-container" id="logContainer">
+                <div class="empty-state">
+                    <span class="material-icons-round">hourglass_empty</span>
+                    Esperando eventos...
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <span class="material-icons-round">check_circle</span>
+        <span id="toastText">Guardado</span>
+    </div>
+
+    <script>
+        // ── STATE ──
+        let logs = [];
+        let printerStats = { comandas: 0, facturas: 0, errors: 0 };
+
+        const AREAS = {
+            cocina: {
+                icon: '🔥',
+                label: 'Cocina',
+                desc: 'Comandas de alimentos',
+                cssClass: 'cocina',
+            },
+            bar: {
+                icon: '🍸',
+                label: 'Bar',
+                desc: 'Comandas de bebidas',
+                cssClass: 'bar',
+            },
+            caja: {
+                icon: '💵',
+                label: 'Caja',
+                desc: 'Tickets y facturas',
+                cssClass: 'caja',
+            },
+        };
+
+        // ── FETCH STATUS ──
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/status');
+                const data = await res.json();
+
+                // Connection badge
+                const badge = document.getElementById('connectionBadge');
+                const text = document.getElementById('connectionText');
+                if (data.connected) {
+                    badge.className = 'connection-badge online';
+                    text.textContent = 'Conectado a la API';
+                } else {
+                    badge.className = 'connection-badge offline';
+                    text.textContent = 'Sin conexión';
+                }
+
+                // Uptime
+                const mins = Math.floor(data.uptime / 60);
+                const hrs = Math.floor(mins / 60);
+                document.getElementById('statUptime').textContent =
+                    hrs > 0 ? `${hrs}h ${mins % 60}m` : `${mins}m ${data.uptime % 60}s`;
+
+                // Printers
+                renderPrinters(data.printers);
+
+                // Stats from print counts
+                let totalPrints = 0;
+                Object.values(data.printers).forEach(p => {
+                    totalPrints += p.printCount || 0;
+                });
+            } catch (e) {
+                console.error('Error fetching status:', e);
+            }
+        }
+
+        // ── RENDER PRINTERS ──
+        function renderPrinters(printers) {
+            const grid = document.getElementById('printersGrid');
+            // Only render once (to avoid wiping user input)
+            if (grid.children.length > 0 && !grid.dataset.initial) return;
+            grid.dataset.initial = '1';
+            grid.innerHTML = '';
+
+            for (const [area, config] of Object.entries(printers)) {
+                const info = AREAS[area] || { icon: '🖨️', label: area, desc: '', cssClass: 'cocina' };
+                const statusClass = config.type === 'none' ? 'badge-none'
+                    : config.status === 'ok' ? 'badge-ok' : 'badge-error';
+                const statusLabel = config.type === 'none' ? 'Simulado'
+                    : config.status === 'ok' ? 'Conectada' : (config.status || 'Sin probar');
+
+                grid.innerHTML += `
+                <div class="printer-card" id="printer-${area}">
+                    <div class="printer-card-header">
+                        <div class="printer-area">
+                            <div class="printer-area-icon ${info.cssClass}">${info.icon}</div>
+                            <div>
+                                <div class="printer-area-name">${info.label}</div>
+                                <div class="printer-area-desc">${info.desc}</div>
+                            </div>
+                        </div>
+                        <span class="printer-status-badge ${statusClass}" id="badge-${area}">${statusLabel}</span>
+                    </div>
+                    <div class="printer-card-body">
+                        <div class="printer-config">
+                            <div class="config-field">
+                                <label>Tipo</label>
+                                <select id="type-${area}" onchange="onTypeChange('${area}')">
+                                    <option value="none" ${config.type === 'none' ? 'selected' : ''}>🟡 Simulado (consola)</option>
+                                    <option value="network" ${config.type === 'network' ? 'selected' : ''}>🟢 Red TCP (ESC/POS)</option>
+                                </select>
+                            </div>
+                            <div class="config-field" id="host-group-${area}" style="${config.type !== 'network' ? 'opacity:0.4' : ''}">
+                                <label>IP impresora</label>
+                                <input type="text" id="host-${area}" placeholder="192.168.1.100"
+                                    value="${config.host || ''}" ${config.type !== 'network' ? 'disabled' : ''}>
+                            </div>
+                            <div class="config-field" id="port-group-${area}" style="${config.type !== 'network' ? 'opacity:0.4' : ''}">
+                                <label>Puerto</label>
+                                <input type="number" id="port-${area}" placeholder="9100"
+                                    value="${config.port || 9100}" ${config.type !== 'network' ? 'disabled' : ''}>
+                            </div>
+                            <div class="config-field" style="display:flex;align-items:end">
+                                ${config.lastPrint ? `<span style="font-size:11px;color:var(--text-muted)">Última: ${new Date(config.lastPrint).toLocaleTimeString('es-CO')}</span>` : '<span style="font-size:11px;color:var(--text-muted)">Sin impresiones aún</span>'}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="printer-card-actions">
+                        <button class="btn btn-outline" onclick="testPrint('${area}')">
+                            <span class="material-icons-round">receipt_long</span>
+                            Prueba
+                        </button>
+                        <button class="btn btn-save" onclick="savePrinter('${area}')">
+                            <span class="material-icons-round">save</span>
+                            Guardar
+                        </button>
+                    </div>
+                </div>`;
+            }
+        }
+
+        function onTypeChange(area) {
+            const type = document.getElementById(`type-${area}`).value;
+            const hostGroup = document.getElementById(`host-group-${area}`);
+            const portGroup = document.getElementById(`port-group-${area}`);
+            const hostInput = document.getElementById(`host-${area}`);
+            const portInput = document.getElementById(`port-${area}`);
+
+            if (type === 'network') {
+                hostGroup.style.opacity = '1';
+                portGroup.style.opacity = '1';
+                hostInput.disabled = false;
+                portInput.disabled = false;
+            } else {
+                hostGroup.style.opacity = '0.4';
+                portGroup.style.opacity = '0.4';
+                hostInput.disabled = true;
+                portInput.disabled = true;
+            }
+        }
+
+        // ── SAVE PRINTER CONFIG ──
+        async function savePrinter(area) {
+            const type = document.getElementById(`type-${area}`).value;
+            const host = document.getElementById(`host-${area}`).value;
+            const port = document.getElementById(`port-${area}`).value;
+
+            try {
+                const res = await fetch(`/config/printer/${area}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type, host, port: parseInt(port) || 9100 }),
+                });
+                const data = await res.json();
+
+                // Update badge
+                const badge = document.getElementById(`badge-${area}`);
+                if (type === 'none') {
+                    badge.className = 'printer-status-badge badge-none';
+                    badge.textContent = 'Simulado';
+                } else {
+                    badge.className = 'printer-status-badge badge-ok';
+                    badge.textContent = 'Configurada';
+                }
+
+                showToast(`Impresora "${area}" actualizada`);
+                // Force re-render printers on next fetch
+                document.getElementById('printersGrid').removeAttribute('data-initial');
+            } catch (e) {
+                showToast(`Error: ${e.message}`);
+            }
+        }
+
+        // ── TEST PRINT ──
+        async function testPrint(area) {
+            try {
+                const res = await fetch(`/test-print/${area}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.ok) {
+                    showToast(`Prueba enviada a ${area.toUpperCase()}`);
+                    printerStats.comandas++;
+                    updateStats();
+                } else {
+                    showToast(`Error en prueba de ${area}`);
+                }
+                fetchLogs();
+            } catch (e) {
+                showToast(`Error: ${e.message}`);
+            }
+        }
+
+        // ── LOGS ──
+        async function fetchLogs() {
+            try {
+                const res = await fetch('/logs');
+                const newLogs = await res.json();
+
+                const container = document.getElementById('logContainer');
+                const prevCount = logs.length;
+                logs = newLogs;
+
+                if (logs.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <span class="material-icons-round">hourglass_empty</span>
+                            Esperando eventos...
+                        </div>`;
+                    return;
+                }
+
+                // Count stats
+                printerStats.comandas = 0;
+                printerStats.facturas = 0;
+                printerStats.errors = 0;
+                logs.forEach(l => {
+                    if (l.msg.includes('Comanda #')) printerStats.comandas++;
+                    if (l.msg.includes('Factura ')) printerStats.facturas++;
+                    if (l.msg.includes('❌')) printerStats.errors++;
+                });
+                updateStats();
+
+                container.innerHTML = logs.slice(0, 100).map((log, i) => {
+                    const time = log.time ? log.time.substring(11, 19) : '';
+                    let cls = '';
+                    if (log.msg.includes('❌')) cls = 'error';
+                    else if (log.msg.includes('✅')) cls = 'success';
+                    else if (log.msg.includes('🔔') || log.msg.includes('🧾')) cls = 'info';
+                    else if (log.msg.includes('⚠️')) cls = 'warn';
+                    const isNew = i < (logs.length - prevCount) && prevCount > 0;
+                    return `<div class="log-entry ${cls} ${isNew ? 'new' : ''}">
+                        <span class="log-time">${time}</span>
+                        <span class="log-msg">${escapeHtml(log.msg)}</span>
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                console.error('Error fetching logs:', e);
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('statComandas').textContent = printerStats.comandas;
+            document.getElementById('statFacturas').textContent = printerStats.facturas;
+            document.getElementById('statErrors').textContent = printerStats.errors;
+        }
+
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = `
+                <div class="empty-state">
+                    <span class="material-icons-round">hourglass_empty</span>
+                    Esperando eventos...
+                </div>`;
+            logs = [];
+            printerStats = { comandas: 0, facturas: 0, errors: 0 };
+            updateStats();
+        }
+
+        // ── HELPERS ──
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastText').textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // ── POLLING ──
+        fetchStatus();
+        fetchLogs();
+        setInterval(fetchStatus, 5000);
+        setInterval(fetchLogs, 3000);
+    </script>
+</body>
+
+</html>
