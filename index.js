@@ -139,6 +139,20 @@ function connectWebSocket() {
 // HANDLERS DE EVENTOS
 // ============================================================
 
+// Mapeo de nombres de áreas (la API puede enviar nombres distintos)
+function normalizeArea(area) {
+    const map = {
+        'barra': 'bar',
+        'bar': 'bar',
+        'cocina': 'cocina',
+        'kitchen': 'cocina',
+        'caja': 'caja',
+        'cashier': 'caja',
+    };
+    const normalized = (area || 'cocina').toLowerCase().trim();
+    return map[normalized] || normalized;
+}
+
 async function handleNuevaComanda(data) {
     const payload = typeof data.payload === 'string' ? JSON.parse(data.payload) : data.payload;
     if (!payload) {
@@ -146,7 +160,8 @@ async function handleNuevaComanda(data) {
         return;
     }
 
-    const area = data.area_destino || payload.area || 'cocina';
+    const rawArea = data.area_destino || payload.area || 'cocina';
+    const area = normalizeArea(rawArea);
     const text = printerManager.formatComanda(payload);
     const success = await printerManager.print(area, text);
 
@@ -215,11 +230,12 @@ app.put('/config', (req, res) => {
 // Guardar configuración de impresora individual
 app.put('/config/printer/:area', (req, res) => {
     const { area } = req.params;
-    const { type, host, port } = req.body;
-    config.printers[area] = { type: type || 'none', host, port: parseInt(port) || 9100 };
+    const { type, host, port, name } = req.body;
+    config.printers[area] = { type: type || 'none', host, port: parseInt(port) || 9100, name: name || '' };
     saveConfig(config);
     printerManager.register(area, config.printers[area]);
-    printerManager.log(`⚙️ Impresora "${area}" → ${type} (${host || 'local'}:${port || 9100})`);
+    const detail = type === 'windows' ? `windows: ${name}` : `${type} (${host || 'local'}:${port || 9100})`;
+    printerManager.log(`⚙️ Impresora "${area}" → ${detail}`);
     res.json({ ok: true });
 });
 

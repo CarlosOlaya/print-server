@@ -829,20 +829,26 @@
                     </div>
                     <div class="printer-card-body">
                         <div class="printer-config">
-                            <div class="config-field">
+                            <div class="config-field" style="grid-column:span 2">
                                 <label>Tipo</label>
                                 <select id="type-${area}" onchange="toggleFields('${area}')">
                                     <option value="none" ${cfg.type === 'none' ? 'selected' : ''}>🟡 Simulado</option>
-                                    <option value="network" ${cfg.type === 'network' ? 'selected' : ''}>🟢 Red TCP</option>
+                                    <option value="network" ${cfg.type === 'network' ? 'selected' : ''}>🟢 Red TCP (IP)</option>
+                                    <option value="windows" ${cfg.type === 'windows' ? 'selected' : ''}>🔵 Windows (USB)</option>
                                 </select>
                             </div>
-                            <div class="config-field" id="host-wrap-${area}" style="${cfg.type !== 'network' ? 'opacity:0.4' : ''}">
-                                <label>IP impresora</label>
-                                <input type="text" id="host-${area}" placeholder="192.168.1.100" value="${cfg.host || ''}" ${cfg.type !== 'network' ? 'disabled' : ''}>
+                            <div class="config-field" id="name-wrap-${area}" style="grid-column:span 2;${cfg.type !== 'windows' ? 'display:none' : ''}">
+                                <label>Nombre de impresora (como aparece en Windows)</label>
+                                <input type="text" id="name-${area}" placeholder="Ej: CAJAP" value="${cfg.name || ''}">
+                                <div class="config-hint">Panel de control → Dispositivos e impresoras → nombre exacto</div>
                             </div>
-                            <div class="config-field" id="port-wrap-${area}" style="${cfg.type !== 'network' ? 'opacity:0.4' : ''}">
+                            <div class="config-field" id="host-wrap-${area}" style="${cfg.type !== 'network' ? 'display:none' : ''}">
+                                <label>IP impresora</label>
+                                <input type="text" id="host-${area}" placeholder="192.168.1.100" value="${cfg.host || ''}">
+                            </div>
+                            <div class="config-field" id="port-wrap-${area}" style="${cfg.type !== 'network' ? 'display:none' : ''}">
                                 <label>Puerto</label>
-                                <input type="number" id="port-${area}" placeholder="9100" value="${cfg.port || 9100}" ${cfg.type !== 'network' ? 'disabled' : ''}>
+                                <input type="number" id="port-${area}" placeholder="9100" value="${cfg.port || 9100}">
                             </div>
                             <div class="config-field" style="display:flex;align-items:end">
                                 <span style="font-size:11px;color:var(--text-muted)" id="last-${area}">${cfg.lastPrint ? 'Última: ' + new Date(cfg.lastPrint).toLocaleTimeString('es-CO') : 'Sin impresiones'}</span>
@@ -864,21 +870,22 @@
         function toggleFields(area) {
             const type = document.getElementById(`type-${area}`).value;
             const isNet = type === 'network';
-            document.getElementById(`host-wrap-${area}`).style.opacity = isNet ? '1' : '0.4';
-            document.getElementById(`port-wrap-${area}`).style.opacity = isNet ? '1' : '0.4';
-            document.getElementById(`host-${area}`).disabled = !isNet;
-            document.getElementById(`port-${area}`).disabled = !isNet;
+            const isWin = type === 'windows';
+            document.getElementById(`host-wrap-${area}`).style.display = isNet ? '' : 'none';
+            document.getElementById(`port-wrap-${area}`).style.display = isNet ? '' : 'none';
+            document.getElementById(`name-wrap-${area}`).style.display = isWin ? '' : 'none';
         }
 
         async function savePrinter(area) {
             const type = document.getElementById(`type-${area}`).value;
             const host = document.getElementById(`host-${area}`).value;
             const port = document.getElementById(`port-${area}`).value;
+            const name = document.getElementById(`name-${area}`).value;
             try {
                 await fetch(`/config/printer/${area}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type, host, port: parseInt(port) || 9100 }),
+                    body: JSON.stringify({ type, host, port: parseInt(port) || 9100, name }),
                 });
                 printersRendered = false;
                 showToast(`Impresora "${area}" guardada`);

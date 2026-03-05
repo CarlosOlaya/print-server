@@ -1,8 +1,10 @@
 // ============================================================
 // PRINTER MANAGER - Gestiona las impresoras del restaurante
 // ============================================================
-// Soporta impresoras térmicas ESC/POS por red (network) y
-// modo "none" para pruebas sin impresora física.
+// Soporta:
+//   - 'network'  → Impresora TCP/IP por red (ESC/POS directo)
+//   - 'windows'  → Impresora USB/compartida vía Windows (usa el nombre de impresora)
+//   - 'none'     → Modo prueba (imprime en consola)
 
 class PrinterManager {
     constructor() {
@@ -17,11 +19,15 @@ class PrinterManager {
             type: config.type || 'none',
             host: config.host,
             port: config.port || 9100,
+            name: config.name || '',  // Nombre de impresora Windows (ej: "CAJAP")
             status: 'registrada',
             lastPrint: null,
             printCount: 0,
         };
-        this.log(`📠 Impresora "${area}" registrada (${config.type}: ${config.host || 'local'})`);
+        const detail = config.type === 'windows' ? `windows: ${config.name}`
+            : config.type === 'network' ? `network: ${config.host}:${config.port || 9100}`
+                : 'simulado';
+        this.log(`📠 Impresora "${area}" registrada (${detail})`);
     }
 
     // Imprimir texto en la impresora del area indicada
@@ -30,7 +36,6 @@ class PrinterManager {
 
         if (!printer) {
             this.log(`⚠️ No hay impresora para area: ${area}`);
-            // Si no hay impresora para el area, intentar con la de caja como fallback
             if (this.printers['caja']) {
                 this.log(`↪️ Redirigiendo a impresora de caja`);
                 return this.print('caja', text);
@@ -41,8 +46,9 @@ class PrinterManager {
         try {
             if (printer.type === 'network') {
                 await this.printNetwork(printer, text);
+            } else if (printer.type === 'windows') {
+                await this.printWindows(printer, text, area);
             } else if (printer.type === 'none') {
-                // Modo prueba: solo loguea
                 this.log(`🖨️ [SIMULADO - ${area}] Imprimiendo ${text.length} caracteres`);
                 console.log('\n' + '='.repeat(40));
                 console.log(`IMPRESION SIMULADA → ${area.toUpperCase()}`);
@@ -63,7 +69,7 @@ class PrinterManager {
         }
     }
 
-    // Imprimir por red TCP (ESC/POS)
+    // Imprimir por red TCP (ESC/POS directo)
     async printNetwork(printer, text) {
         const net = require('net');
 
@@ -77,12 +83,11 @@ class PrinterManager {
             client.connect(printer.port, printer.host, () => {
                 clearTimeout(timeout);
 
-                // Comandos ESC/POS
                 const ESC = '\x1B';
                 const GS = '\x1D';
                 const commands = [
-                    ESC + '@',           // Inicializar impresora
-                    ESC + 'a' + '\x01', // Centrar texto
+                    ESC + '@',           // Inicializar
+                    ESC + 'a' + '\x01', // Centrar
                     text,
                     '\n\n\n',
                     GS + 'V' + '\x00',  // Cortar papel
@@ -97,6 +102,74 @@ class PrinterManager {
             client.on('error', (err) => {
                 clearTimeout(timeout);
                 reject(err);
+            });
+        });
+    }
+
+    // Imprimir por USB/compartida via Windows
+    async printWindows(printer, text, area) {
+        const fs = require('fs');
+        const path = require('path');
+        const { exec } = require('child_process');
+        const os = require('os');
+
+        const printerName = printer.name;
+        if (!printerName) {
+            throw new Error('Nombre de impresora Windows no configurado');
+        }
+
+        // Escribir datos a archivo temporal con comandos ESC/POS
+        const tmpDir = os.tmpdir();
+        const tmpFile = path.join(tmpDir, `foodly_print_${area}_${Date.now()}.bin`);
+
+        const ESC = '\x1B';
+        const GS = '\x1D';
+        const rawData = Buffer.from(
+            ESC + '@' +           // Inicializar
+            ESC + 'a' + '\x01' + // Centrar
+            text +
+            '\n\n\n' +
+            GS + 'V' + '\x00',  // Cortar papel
+            'latin1'
+        );
+
+        fs.writeFileSync(tmpFile, rawData);
+        this.log(`🖨️ [WINDOWS - ${area}] Enviando a "${printerName}"...`);
+
+        return new Promise((resolve, reject) => {
+            // Usar PowerShell para enviar raw data a la impresora
+            const psCmd = `
+                $printer = Get-WmiObject -Query "SELECT * FROM Win32_Printer WHERE Name='${printerName.replace(/'/g, "''")}}'"
+                if (-not $printer) {
+                    # Intentar enviar via copy al puerto compartido
+                    Copy-Item '${tmpFile.replace(/'/g, "''")}' -Destination '\\\\localhost\\${printerName.replace(/'/g, "''")}' -Force
+                } else {
+                    Copy-Item '${tmpFile.replace(/'/g, "''")}' -Destination '\\\\localhost\\${printerName.replace(/'/g, "''")}' -Force
+                }
+            `.trim();
+
+            // Método más simple y confiable: usar "print" de Windows
+            // o copiar directamente al share de la impresora
+            const cmd = `copy /b "${tmpFile}" "\\\\localhost\\${printerName}"`;
+
+            exec(cmd, { shell: 'cmd.exe' }, (error, stdout, stderr) => {
+                // Limpiar archivo temporal
+                try { fs.unlinkSync(tmpFile); } catch (e) { /* ok */ }
+
+                if (error) {
+                    // Si copy falla, intentar con PowerShell Out-Printer
+                    const psAlt = `powershell -Command "Get-Content '${tmpFile}' -Raw | Out-Printer -Name '${printerName}'"`;
+                    // Intentar método alternativo con raw file
+                    const cmd2 = `powershell -Command "$bytes=[System.IO.File]::ReadAllBytes('${tmpFile}'); $port=New-Object System.IO.Ports.SerialPort; $handler=[System.Drawing.Printing.PrintDocument]::new(); $handler.PrinterSettings.PrinterName='${printerName}'"`;
+
+                    // Método directo: usar WMIC
+                    this.log(`⚠️ "copy" falló, usa impresora compartida. Error: ${error.message}`);
+                    reject(new Error(`No se pudo imprimir en "${printerName}". Comparte la impresora en Windows (click derecho → Propiedades → Compartir → Compartir esta impresora)`));
+                    return;
+                }
+
+                this.log(`📄 Datos enviados a ${printerName}`);
+                resolve();
             });
         });
     }
