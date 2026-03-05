@@ -178,6 +178,9 @@ class PrinterManager {
     formatComanda(payload) {
         const lines = [];
         const sep = '-'.repeat(32);
+        const now = new Date();
+        const fecha = now.toLocaleDateString('es-CO');
+        const hora = payload.hora || now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 
         lines.push('');
         lines.push(`  COMANDA #${payload.comanda}`);
@@ -186,19 +189,20 @@ class PrinterManager {
         lines.push(`Mesero: ${payload.mesero}`);
         if (payload.comensales) lines.push(`Comensales: ${payload.comensales}`);
         lines.push(`Area: ${(payload.area || '').toUpperCase()}`);
-        lines.push(`${payload.fecha} ${payload.hora}`);
+        lines.push(`${fecha}  ${hora}`);
         lines.push(sep);
 
         (payload.items || []).forEach(item => {
-            const cant = String(item.cantidad).padStart(2, ' ');
-            lines.push(`${cant} x ${item.producto}`);
+            const cant = String(item.cantidad || 1).padStart(2, ' ');
+            const nombre = item.nombre || item.producto || 'Sin nombre';
+            lines.push(`${cant} x ${nombre}`);
             if (item.comentario) {
                 lines.push(`     >> ${item.comentario}`);
             }
         });
 
         lines.push(sep);
-        lines.push('');
+        lines.push(this._footer());
 
         return lines.join('\n');
     }
@@ -214,19 +218,18 @@ class PrinterManager {
         lines.push('');
         lines.push(`  ${factura.numero_factura || 'FACTURA'}`);
         lines.push(sep);
-        lines.push(`Fecha: ${fecha} ${hora}`);
+        lines.push(`Fecha: ${fecha}  ${hora}`);
         lines.push(`Mesa: ${factura.mesa_numero || ''}`);
         lines.push(`Mesero: ${factura.mesero || ''}`);
         lines.push(`Cliente: ${factura.cliente || 'Consumidor final'}`);
         lines.push(sep);
 
-        // Detalle (si viene)
         if (factura.items) {
             lines.push('Cant  Producto          Total');
             lines.push(sep);
             factura.items.forEach(item => {
                 const cant = String(item.cantidad || 1).padStart(3, ' ');
-                const nombre = (item.plato || item.nombre || '').substring(0, 16).padEnd(16, ' ');
+                const nombre = (item.nombre || item.plato || '').substring(0, 16).padEnd(16, ' ');
                 const total = ((item.precio_unitario || 0) * (item.cantidad || 1)).toLocaleString('es-CO');
                 lines.push(`${cant}  ${nombre}  $${total}`);
             });
@@ -244,7 +247,7 @@ class PrinterManager {
         lines.push(`Pago: ${factura.metodo_pago || ''}`);
         lines.push('');
         lines.push('  Gracias por su visita!');
-        lines.push('');
+        lines.push(this._footer());
 
         return lines.join('\n');
     }
@@ -254,12 +257,14 @@ class PrinterManager {
         const lines = [];
         const sep = '-'.repeat(32);
         const now = new Date();
+        const fecha = now.toLocaleDateString('es-CO');
+        const hora = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 
         lines.push('');
         lines.push('  *** PRECUENTA ***');
         lines.push(sep);
         if (data.tenant_nombre) lines.push(`  ${data.tenant_nombre}`);
-        lines.push(`Fecha: ${now.toLocaleDateString('es-CO')} ${now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`);
+        lines.push(`Fecha: ${fecha}  ${hora}`);
         lines.push(`Mesa: ${data.mesa_numero || ''}`);
         lines.push(`Mesero: ${data.mesero || ''}`);
         lines.push(sep);
@@ -269,7 +274,7 @@ class PrinterManager {
             lines.push(sep);
             data.items.forEach(item => {
                 const cant = String(item.cantidad || 1).padStart(3, ' ');
-                const nombre = (item.plato || item.nombre || '').substring(0, 16).padEnd(16, ' ');
+                const nombre = (item.nombre || item.plato || '').substring(0, 16).padEnd(16, ' ');
                 const total = ((item.precio_unitario || 0) * (item.cantidad || 1)).toLocaleString('es-CO');
                 lines.push(`${cant}  ${nombre}  $${total}`);
             });
@@ -286,7 +291,7 @@ class PrinterManager {
         lines.push('');
         lines.push('  ** NO VALIDO COMO FACTURA **');
         lines.push('  Documento de verificacion');
-        lines.push('');
+        lines.push(this._footer());
 
         return lines.join('\n');
     }
@@ -355,7 +360,7 @@ class PrinterManager {
             lines.push(`Obs: ${data.observaciones}`);
         }
         lines.push(sep);
-        lines.push('');
+        lines.push(this._footer());
 
         return lines.join('\n');
     }
@@ -425,10 +430,27 @@ class PrinterManager {
             }
         }
 
-        lines.push('');
         lines.push(sep);
-        lines.push('');
+        lines.push(this._footer());
 
+        return lines.join('\n');
+    }
+
+    // ── Footer + espacio de corte ──
+    _footer() {
+        const lines = [];
+        lines.push('');
+        lines.push('    - - -  Foodly  - - -');
+        lines.push(' Carlos Olaya Dev');
+        lines.push('     www.foodly.com');
+        lines.push('');
+        // Espacio para que la impresora avance
+        // y la tirilla no se corte antes del footer
+        lines.push('');
+        lines.push('');
+        lines.push('');
+        lines.push('');
+        lines.push('');
         return lines.join('\n');
     }
 

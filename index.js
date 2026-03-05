@@ -282,7 +282,12 @@ app.post('/test-print/:area', async (req, res) => {
         `  Fecha: ${new Date().toLocaleString('es-CO')}`,
         '-'.repeat(32),
         '  Si ves esto, la impresora',
-        '  esta correctamente configurada!', '',
+        '  esta correctamente configurada!',
+        '',
+        '    - - -  Foodly  - - -',
+        ' Carlos Olaya Dev',
+        '     www.foodly.com',
+        '', '', '', '', '', '',
     ].join('\n');
 
     const success = await printerManager.print(area, testText);
