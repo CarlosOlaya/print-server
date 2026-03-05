@@ -23,7 +23,6 @@
             --yellow-dim: rgba(245, 158, 11, 0.15);
             --purple: #a855f7;
             --purple-dim: rgba(168, 85, 247, 0.15);
-            --blue: #3b82f6;
             --text-primary: #f1f5f9;
             --text-secondary: #94a3b8;
             --text-muted: #64748b;
@@ -42,18 +41,16 @@
             min-height: 100vh;
         }
 
-        /* ── Header ── */
         .header {
             background: linear-gradient(135deg, #111827 0%, #0f172a 100%);
             border-bottom: 1px solid var(--border);
-            padding: 16px 24px;
+            padding: 14px 24px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             position: sticky;
             top: 0;
             z-index: 100;
-            backdrop-filter: blur(12px);
         }
 
         .header-left {
@@ -76,7 +73,6 @@
         .header h1 {
             font-size: 18px;
             font-weight: 700;
-            letter-spacing: -0.3px;
         }
 
         .header h1 span {
@@ -105,6 +101,11 @@
             color: var(--red);
         }
 
+        .connection-badge.pending {
+            background: var(--yellow-dim);
+            color: var(--yellow);
+        }
+
         .connection-badge .dot {
             width: 8px;
             height: 8px;
@@ -120,19 +121,22 @@
             background: var(--red);
         }
 
+        .connection-badge.pending .dot {
+            background: var(--yellow);
+        }
+
         @keyframes pulse {
 
             0%,
             100% {
-                opacity: 1;
+                opacity: 1
             }
 
             50% {
-                opacity: 0.4;
+                opacity: 0.4
             }
         }
 
-        /* ── Layout ── */
         .main {
             max-width: 1200px;
             margin: 0 auto;
@@ -141,10 +145,10 @@
             gap: 20px;
         }
 
-        /* ── Status Bar ── */
+        /* ── Stats ── */
         .status-bar {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
             gap: 12px;
         }
 
@@ -169,7 +173,7 @@
             letter-spacing: 0.5px;
         }
 
-        /* ── Printers Section ── */
+        /* ── Section ── */
         .section-title {
             font-size: 16px;
             font-weight: 600;
@@ -184,6 +188,121 @@
             color: var(--cyan);
         }
 
+        /* ── Config Card ── */
+        .config-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+        }
+
+        .config-row {
+            display: flex;
+            gap: 12px;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+
+        .config-field {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .config-field label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .config-field input,
+        .config-field select {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .config-field input:focus {
+            border-color: var(--cyan);
+        }
+
+        .config-field input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .config-field select {
+            cursor: pointer;
+        }
+
+        .config-field select option {
+            background: var(--bg-dark);
+        }
+
+        .config-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn .material-icons-round {
+            font-size: 16px;
+        }
+
+        .btn-primary {
+            background: var(--cyan);
+            color: #0a0e1a;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.85;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--cyan);
+            color: var(--cyan);
+        }
+
+        .btn-save {
+            background: var(--green);
+            color: #fff;
+        }
+
+        .btn-save:hover {
+            opacity: 0.85;
+        }
+
+        /* ── Printers ── */
         .printers-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -200,7 +319,7 @@
 
         .printer-card:hover {
             transform: translateY(-2px);
-            border-color: var(--cyan);
+            border-color: rgba(0, 229, 198, 0.3);
         }
 
         .printer-card-header {
@@ -252,7 +371,7 @@
             color: var(--text-muted);
         }
 
-        .printer-status-badge {
+        .badge {
             padding: 4px 10px;
             border-radius: 6px;
             font-size: 11px;
@@ -285,41 +404,6 @@
             gap: 10px;
         }
 
-        .config-field label {
-            display: block;
-            font-size: 11px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
-
-        .config-field input,
-        .config-field select {
-            width: 100%;
-            padding: 8px 10px;
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-family: 'Inter', sans-serif;
-            font-size: 13px;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        .config-field input:focus,
-        .config-field select:focus {
-            border-color: var(--cyan);
-        }
-
-        .config-field select {
-            cursor: pointer;
-        }
-
-        .config-field select option {
-            background: var(--bg-dark);
-        }
-
         .printer-card-actions {
             padding: 12px 20px;
             border-top: 1px solid var(--border);
@@ -327,51 +411,11 @@
             gap: 8px;
         }
 
-        .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-family: 'Inter', sans-serif;
-            font-size: 13px;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
-        }
-
-        .btn .material-icons-round {
-            font-size: 16px;
-        }
-
-        .btn-primary {
-            background: var(--cyan);
-            color: #0a0e1a;
-        }
-
-        .btn-primary:hover {
-            opacity: 0.85;
-        }
-
-        .btn-outline {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text-secondary);
-        }
-
-        .btn-outline:hover {
-            border-color: var(--cyan);
-            color: var(--cyan);
-        }
-
-        .btn-save {
-            background: var(--green);
-            color: #fff;
+        .printer-card-actions .btn-save {
             margin-left: auto;
         }
 
-        /* ── Log Section ── */
+        /* ── Logs ── */
         .log-section {
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -433,11 +477,11 @@
 
         @keyframes flashGreen {
             0% {
-                background: var(--green-dim);
+                background: var(--green-dim)
             }
 
             100% {
-                background: transparent;
+                background: transparent
             }
         }
 
@@ -479,6 +523,26 @@
             display: block;
         }
 
+        /* ── Setup banner ── */
+        .setup-banner {
+            background: linear-gradient(135deg, rgba(0, 229, 198, 0.1), rgba(59, 130, 246, 0.1));
+            border: 1px dashed var(--cyan);
+            border-radius: 14px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .setup-banner h2 {
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+
+        .setup-banner p {
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
         /* ── Toast ── */
         .toast {
             position: fixed;
@@ -508,7 +572,6 @@
             color: var(--green);
         }
 
-        /* ── Responsive ── */
         @media (max-width: 768px) {
             .main {
                 padding: 16px;
@@ -525,28 +588,65 @@
             .printer-config {
                 grid-template-columns: 1fr;
             }
+
+            .config-row {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
 
 <body>
 
-    <!-- Header -->
     <header class="header">
         <div class="header-left">
             <div class="header-logo">🖨️</div>
             <h1>Foodly Print Server <span>v2.0</span></h1>
         </div>
-        <div id="connectionBadge" class="connection-badge offline">
+        <div id="connectionBadge" class="connection-badge pending">
             <div class="dot"></div>
-            <span id="connectionText">Desconectado</span>
+            <span id="connectionText">Cargando...</span>
         </div>
     </header>
 
-    <!-- Main -->
     <main class="main">
 
-        <!-- Status Cards -->
+        <!-- Setup Banner (visible solo si no hay tenant) -->
+        <div id="setupBanner" class="setup-banner" style="display:none">
+            <h2>👋 ¡Bienvenido! Configura tu restaurante</h2>
+            <p>Pega tu TENANT ID abajo para conectar con tu cuenta de Foodly y empezar a recibir comandas.</p>
+        </div>
+
+        <!-- Configuración -->
+        <div>
+            <div class="section-title">
+                <span class="material-icons-round">settings</span>
+                Conexión al restaurante
+            </div>
+            <div class="config-card">
+                <div class="config-row">
+                    <div class="config-field" style="flex:2">
+                        <label>Tenant ID (ID del restaurante)</label>
+                        <input type="text" id="cfgTenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                        <div class="config-hint">Lo encuentras en Foodly → F12 → Console →
+                            <code>JSON.parse(atob(localStorage.getItem('token').split('.')[1])).tenant_id</code>
+                        </div>
+                    </div>
+                    <div class="config-field">
+                        <label>URL de la API</label>
+                        <input type="text" id="cfgApiUrl" placeholder="https://api-foodly.onrender.com">
+                    </div>
+                    <div style="display:flex;gap:8px;padding-bottom:22px">
+                        <button class="btn btn-save" onclick="saveMainConfig()">
+                            <span class="material-icons-round">save</span>
+                            Guardar y conectar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats -->
         <div class="status-bar">
             <div class="stat-card">
                 <div class="stat-value" id="statUptime">0s</div>
@@ -568,13 +668,26 @@
 
         <!-- Printers -->
         <div>
-            <div class="section-title">
-                <span class="material-icons-round">print</span>
-                Impresoras configuradas
+            <div class="section-title" style="justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span class="material-icons-round">print</span>
+                    Impresoras
+                </div>
+                <button class="btn btn-primary" onclick="scanNetwork()" id="scanBtn">
+                    <span class="material-icons-round">wifi_find</span>
+                    Buscar impresoras en la red
+                </button>
             </div>
-            <div class="printers-grid" id="printersGrid">
-                <!-- Se llena dinámicamente -->
+            <div id="scanResults" style="display:none;margin-bottom:16px">
+                <div class="config-card" style="border-color:var(--cyan)">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                        <span class="material-icons-round" style="color:var(--cyan)">radar</span>
+                        <strong>Dispositivos encontrados en puerto 9100</strong>
+                    </div>
+                    <div id="scanList"></div>
+                </div>
             </div>
+            <div class="printers-grid" id="printersGrid"></div>
         </div>
 
         <!-- Logs -->
@@ -598,238 +711,213 @@
         </div>
     </main>
 
-    <!-- Toast -->
     <div class="toast" id="toast">
         <span class="material-icons-round">check_circle</span>
         <span id="toastText">Guardado</span>
     </div>
 
     <script>
-        // ── STATE ──
         let logs = [];
-        let printerStats = { comandas: 0, facturas: 0, errors: 0 };
+        let printersRendered = false;
 
         const AREAS = {
-            cocina: {
-                icon: '🔥',
-                label: 'Cocina',
-                desc: 'Comandas de alimentos',
-                cssClass: 'cocina',
-            },
-            bar: {
-                icon: '🍸',
-                label: 'Bar',
-                desc: 'Comandas de bebidas',
-                cssClass: 'bar',
-            },
-            caja: {
-                icon: '💵',
-                label: 'Caja',
-                desc: 'Tickets y facturas',
-                cssClass: 'caja',
-            },
+            cocina: { icon: '🔥', label: 'Cocina', desc: 'Comandas de alimentos', css: 'cocina' },
+            bar: { icon: '🍸', label: 'Bar', desc: 'Comandas de bebidas', css: 'bar' },
+            caja: { icon: '💵', label: 'Caja', desc: 'Tickets y facturas', css: 'caja' },
         };
 
-        // ── FETCH STATUS ──
+        // ── Load config on start ──
+        async function loadConfig() {
+            try {
+                const res = await fetch('/config');
+                const cfg = await res.json();
+                document.getElementById('cfgTenantId').value = cfg.tenant_id || '';
+                document.getElementById('cfgApiUrl').value = cfg.api_url || '';
+                document.getElementById('setupBanner').style.display = cfg.tenant_id ? 'none' : 'block';
+            } catch (e) { console.error(e); }
+        }
+
+        // ── Save main config ──
+        async function saveMainConfig() {
+            const tenant_id = document.getElementById('cfgTenantId').value.trim();
+            const api_url = document.getElementById('cfgApiUrl').value.trim();
+
+            if (!tenant_id) {
+                showToast('⚠️ Pega tu TENANT ID primero');
+                return;
+            }
+
+            try {
+                const res = await fetch('/config', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tenant_id, api_url }),
+                });
+                const data = await res.json();
+                showToast('✅ Configuración guardada. Conectando...');
+                document.getElementById('setupBanner').style.display = 'none';
+                fetchStatus();
+                fetchLogs();
+            } catch (e) {
+                showToast('❌ Error guardando: ' + e.message);
+            }
+        }
+
+        // ── Fetch status ──
         async function fetchStatus() {
             try {
                 const res = await fetch('/status');
                 const data = await res.json();
 
-                // Connection badge
                 const badge = document.getElementById('connectionBadge');
                 const text = document.getElementById('connectionText');
                 if (data.connected) {
                     badge.className = 'connection-badge online';
                     text.textContent = 'Conectado a la API';
+                } else if (data.tenant) {
+                    badge.className = 'connection-badge pending';
+                    text.textContent = 'Conectando...';
                 } else {
                     badge.className = 'connection-badge offline';
-                    text.textContent = 'Sin conexión';
+                    text.textContent = 'Sin configurar';
                 }
 
-                // Uptime
                 const mins = Math.floor(data.uptime / 60);
                 const hrs = Math.floor(mins / 60);
                 document.getElementById('statUptime').textContent =
                     hrs > 0 ? `${hrs}h ${mins % 60}m` : `${mins}m ${data.uptime % 60}s`;
 
-                // Printers
-                renderPrinters(data.printers);
-
-                // Stats from print counts
-                let totalPrints = 0;
-                Object.values(data.printers).forEach(p => {
-                    totalPrints += p.printCount || 0;
-                });
-            } catch (e) {
-                console.error('Error fetching status:', e);
-            }
+                if (data.printers && !printersRendered) {
+                    renderPrinters(data.printers);
+                    printersRendered = true;
+                }
+                // Update badges
+                if (data.printers) {
+                    for (const [area, p] of Object.entries(data.printers)) {
+                        const b = document.getElementById(`badge-${area}`);
+                        if (!b) continue;
+                        if (p.type === 'none') { b.className = 'badge badge-none'; b.textContent = 'Simulado'; }
+                        else if (p.status === 'ok') { b.className = 'badge badge-ok'; b.textContent = 'Conectada'; }
+                        else { b.className = 'badge badge-error'; b.textContent = p.status || 'Sin probar'; }
+                        const lastEl = document.getElementById(`last-${area}`);
+                        if (lastEl && p.lastPrint) lastEl.textContent = `Última: ${new Date(p.lastPrint).toLocaleTimeString('es-CO')}`;
+                    }
+                }
+            } catch (e) { console.error(e); }
         }
 
-        // ── RENDER PRINTERS ──
+        // ── Render printers ──
         function renderPrinters(printers) {
             const grid = document.getElementById('printersGrid');
-            // Only render once (to avoid wiping user input)
-            if (grid.children.length > 0 && !grid.dataset.initial) return;
-            grid.dataset.initial = '1';
             grid.innerHTML = '';
-
-            for (const [area, config] of Object.entries(printers)) {
-                const info = AREAS[area] || { icon: '🖨️', label: area, desc: '', cssClass: 'cocina' };
-                const statusClass = config.type === 'none' ? 'badge-none'
-                    : config.status === 'ok' ? 'badge-ok' : 'badge-error';
-                const statusLabel = config.type === 'none' ? 'Simulado'
-                    : config.status === 'ok' ? 'Conectada' : (config.status || 'Sin probar');
+            for (const [area, cfg] of Object.entries(printers)) {
+                const info = AREAS[area] || { icon: '🖨️', label: area, desc: '', css: 'cocina' };
+                const statusClass = cfg.type === 'none' ? 'badge-none' : cfg.status === 'ok' ? 'badge-ok' : 'badge-none';
+                const statusLabel = cfg.type === 'none' ? 'Simulado' : cfg.status === 'ok' ? 'Conectada' : 'Sin probar';
 
                 grid.innerHTML += `
-                <div class="printer-card" id="printer-${area}">
+                <div class="printer-card">
                     <div class="printer-card-header">
                         <div class="printer-area">
-                            <div class="printer-area-icon ${info.cssClass}">${info.icon}</div>
+                            <div class="printer-area-icon ${info.css}">${info.icon}</div>
                             <div>
                                 <div class="printer-area-name">${info.label}</div>
                                 <div class="printer-area-desc">${info.desc}</div>
                             </div>
                         </div>
-                        <span class="printer-status-badge ${statusClass}" id="badge-${area}">${statusLabel}</span>
+                        <span class="badge ${statusClass}" id="badge-${area}">${statusLabel}</span>
                     </div>
                     <div class="printer-card-body">
                         <div class="printer-config">
                             <div class="config-field">
                                 <label>Tipo</label>
-                                <select id="type-${area}" onchange="onTypeChange('${area}')">
-                                    <option value="none" ${config.type === 'none' ? 'selected' : ''}>🟡 Simulado (consola)</option>
-                                    <option value="network" ${config.type === 'network' ? 'selected' : ''}>🟢 Red TCP (ESC/POS)</option>
+                                <select id="type-${area}" onchange="toggleFields('${area}')">
+                                    <option value="none" ${cfg.type === 'none' ? 'selected' : ''}>🟡 Simulado</option>
+                                    <option value="network" ${cfg.type === 'network' ? 'selected' : ''}>🟢 Red TCP</option>
                                 </select>
                             </div>
-                            <div class="config-field" id="host-group-${area}" style="${config.type !== 'network' ? 'opacity:0.4' : ''}">
+                            <div class="config-field" id="host-wrap-${area}" style="${cfg.type !== 'network' ? 'opacity:0.4' : ''}">
                                 <label>IP impresora</label>
-                                <input type="text" id="host-${area}" placeholder="192.168.1.100"
-                                    value="${config.host || ''}" ${config.type !== 'network' ? 'disabled' : ''}>
+                                <input type="text" id="host-${area}" placeholder="192.168.1.100" value="${cfg.host || ''}" ${cfg.type !== 'network' ? 'disabled' : ''}>
                             </div>
-                            <div class="config-field" id="port-group-${area}" style="${config.type !== 'network' ? 'opacity:0.4' : ''}">
+                            <div class="config-field" id="port-wrap-${area}" style="${cfg.type !== 'network' ? 'opacity:0.4' : ''}">
                                 <label>Puerto</label>
-                                <input type="number" id="port-${area}" placeholder="9100"
-                                    value="${config.port || 9100}" ${config.type !== 'network' ? 'disabled' : ''}>
+                                <input type="number" id="port-${area}" placeholder="9100" value="${cfg.port || 9100}" ${cfg.type !== 'network' ? 'disabled' : ''}>
                             </div>
                             <div class="config-field" style="display:flex;align-items:end">
-                                ${config.lastPrint ? `<span style="font-size:11px;color:var(--text-muted)">Última: ${new Date(config.lastPrint).toLocaleTimeString('es-CO')}</span>` : '<span style="font-size:11px;color:var(--text-muted)">Sin impresiones aún</span>'}
+                                <span style="font-size:11px;color:var(--text-muted)" id="last-${area}">${cfg.lastPrint ? 'Última: ' + new Date(cfg.lastPrint).toLocaleTimeString('es-CO') : 'Sin impresiones'}</span>
                             </div>
                         </div>
                     </div>
                     <div class="printer-card-actions">
                         <button class="btn btn-outline" onclick="testPrint('${area}')">
-                            <span class="material-icons-round">receipt_long</span>
-                            Prueba
+                            <span class="material-icons-round">receipt_long</span> Prueba
                         </button>
                         <button class="btn btn-save" onclick="savePrinter('${area}')">
-                            <span class="material-icons-round">save</span>
-                            Guardar
+                            <span class="material-icons-round">save</span> Guardar
                         </button>
                     </div>
                 </div>`;
             }
         }
 
-        function onTypeChange(area) {
+        function toggleFields(area) {
             const type = document.getElementById(`type-${area}`).value;
-            const hostGroup = document.getElementById(`host-group-${area}`);
-            const portGroup = document.getElementById(`port-group-${area}`);
-            const hostInput = document.getElementById(`host-${area}`);
-            const portInput = document.getElementById(`port-${area}`);
-
-            if (type === 'network') {
-                hostGroup.style.opacity = '1';
-                portGroup.style.opacity = '1';
-                hostInput.disabled = false;
-                portInput.disabled = false;
-            } else {
-                hostGroup.style.opacity = '0.4';
-                portGroup.style.opacity = '0.4';
-                hostInput.disabled = true;
-                portInput.disabled = true;
-            }
+            const isNet = type === 'network';
+            document.getElementById(`host-wrap-${area}`).style.opacity = isNet ? '1' : '0.4';
+            document.getElementById(`port-wrap-${area}`).style.opacity = isNet ? '1' : '0.4';
+            document.getElementById(`host-${area}`).disabled = !isNet;
+            document.getElementById(`port-${area}`).disabled = !isNet;
         }
 
-        // ── SAVE PRINTER CONFIG ──
         async function savePrinter(area) {
             const type = document.getElementById(`type-${area}`).value;
             const host = document.getElementById(`host-${area}`).value;
             const port = document.getElementById(`port-${area}`).value;
-
             try {
-                const res = await fetch(`/config/printer/${area}`, {
+                await fetch(`/config/printer/${area}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ type, host, port: parseInt(port) || 9100 }),
                 });
-                const data = await res.json();
-
-                // Update badge
-                const badge = document.getElementById(`badge-${area}`);
-                if (type === 'none') {
-                    badge.className = 'printer-status-badge badge-none';
-                    badge.textContent = 'Simulado';
-                } else {
-                    badge.className = 'printer-status-badge badge-ok';
-                    badge.textContent = 'Configurada';
-                }
-
-                showToast(`Impresora "${area}" actualizada`);
-                // Force re-render printers on next fetch
-                document.getElementById('printersGrid').removeAttribute('data-initial');
-            } catch (e) {
-                showToast(`Error: ${e.message}`);
-            }
+                printersRendered = false;
+                showToast(`Impresora "${area}" guardada`);
+                fetchLogs();
+            } catch (e) { showToast('Error: ' + e.message); }
         }
 
-        // ── TEST PRINT ──
         async function testPrint(area) {
             try {
                 const res = await fetch(`/test-print/${area}`, { method: 'POST' });
                 const data = await res.json();
-                if (data.ok) {
-                    showToast(`Prueba enviada a ${area.toUpperCase()}`);
-                    printerStats.comandas++;
-                    updateStats();
-                } else {
-                    showToast(`Error en prueba de ${area}`);
-                }
+                showToast(data.ok ? `✅ Prueba enviada a ${area}` : `❌ Error en ${area}`);
                 fetchLogs();
-            } catch (e) {
-                showToast(`Error: ${e.message}`);
-            }
+            } catch (e) { showToast('Error: ' + e.message); }
         }
 
-        // ── LOGS ──
+        // ── Logs ──
         async function fetchLogs() {
             try {
                 const res = await fetch('/logs');
                 const newLogs = await res.json();
-
                 const container = document.getElementById('logContainer');
                 const prevCount = logs.length;
                 logs = newLogs;
 
                 if (logs.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <span class="material-icons-round">hourglass_empty</span>
-                            Esperando eventos...
-                        </div>`;
+                    container.innerHTML = '<div class="empty-state"><span class="material-icons-round">hourglass_empty</span>Esperando eventos...</div>';
                     return;
                 }
 
-                // Count stats
-                printerStats.comandas = 0;
-                printerStats.facturas = 0;
-                printerStats.errors = 0;
+                let cmdCount = 0, facCount = 0, errCount = 0;
                 logs.forEach(l => {
-                    if (l.msg.includes('Comanda #')) printerStats.comandas++;
-                    if (l.msg.includes('Factura ')) printerStats.facturas++;
-                    if (l.msg.includes('❌')) printerStats.errors++;
+                    if (l.msg.includes('SIMULADO') || l.msg.includes('Impreso en cocina') || l.msg.includes('Impreso en bar')) cmdCount++;
+                    if (l.msg.includes('Impreso en caja') || l.msg.includes('Factura')) facCount++;
+                    if (l.msg.includes('❌')) errCount++;
                 });
-                updateStats();
+                document.getElementById('statComandas').textContent = cmdCount;
+                document.getElementById('statFacturas').textContent = facCount;
+                document.getElementById('statErrors').textContent = errCount;
 
                 container.innerHTML = logs.slice(0, 100).map((log, i) => {
                     const time = log.time ? log.time.substring(11, 19) : '';
@@ -844,43 +932,86 @@
                         <span class="log-msg">${escapeHtml(log.msg)}</span>
                     </div>`;
                 }).join('');
-            } catch (e) {
-                console.error('Error fetching logs:', e);
-            }
-        }
-
-        function updateStats() {
-            document.getElementById('statComandas').textContent = printerStats.comandas;
-            document.getElementById('statFacturas').textContent = printerStats.facturas;
-            document.getElementById('statErrors').textContent = printerStats.errors;
+            } catch (e) { console.error(e); }
         }
 
         function clearLogs() {
-            document.getElementById('logContainer').innerHTML = `
-                <div class="empty-state">
-                    <span class="material-icons-round">hourglass_empty</span>
-                    Esperando eventos...
-                </div>`;
+            document.getElementById('logContainer').innerHTML = '<div class="empty-state"><span class="material-icons-round">hourglass_empty</span>Esperando eventos...</div>';
             logs = [];
-            printerStats = { comandas: 0, facturas: 0, errors: 0 };
-            updateStats();
+            document.getElementById('statComandas').textContent = '0';
+            document.getElementById('statFacturas').textContent = '0';
+            document.getElementById('statErrors').textContent = '0';
         }
 
-        // ── HELPERS ──
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
+        function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
         function showToast(msg) {
-            const toast = document.getElementById('toast');
+            const t = document.getElementById('toast');
             document.getElementById('toastText').textContent = msg;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
         }
 
-        // ── POLLING ──
+        // ── Scan Network ──
+        async function scanNetwork() {
+            const btn = document.getElementById('scanBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-icons-round">hourglass_top</span> Escaneando...';
+            showToast('🔍 Escaneando red local... (puede tardar ~15s)');
+
+            try {
+                const res = await fetch('/scan-network');
+                const data = await res.json();
+                const panel = document.getElementById('scanResults');
+                const list = document.getElementById('scanList');
+
+                if (data.printers.length === 0) {
+                    panel.style.display = 'block';
+                    list.innerHTML = `<div style="color:var(--text-muted);padding:12px">
+                        No se encontraron impresoras en la red <strong>${data.subnet}.x</strong><br>
+                        <small>Verifica que las impresoras estén encendidas y conectadas al WiFi.</small>
+                    </div>`;
+                } else {
+                    panel.style.display = 'block';
+                    list.innerHTML = data.printers.map(p => `
+                        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+                            <div>
+                                <span style="font-weight:600;color:var(--green)">🖨️ ${p.ip}</span>
+                                <span style="color:var(--text-muted);font-size:12px">:${p.port}</span>
+                            </div>
+                            <div style="display:flex;gap:6px">
+                                <button class="btn btn-outline" style="padding:6px 10px;font-size:12px" onclick="assignPrinter('cocina','${p.ip}')">
+                                    🔥 Cocina
+                                </button>
+                                <button class="btn btn-outline" style="padding:6px 10px;font-size:12px" onclick="assignPrinter('bar','${p.ip}')">
+                                    🍸 Bar
+                                </button>
+                                <button class="btn btn-outline" style="padding:6px 10px;font-size:12px" onclick="assignPrinter('caja','${p.ip}')">
+                                    💵 Caja
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                fetchLogs();
+            } catch (e) {
+                showToast('❌ Error escaneando: ' + e.message);
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-icons-round">wifi_find</span> Buscar impresoras en la red';
+        }
+
+        async function assignPrinter(area, ip) {
+            // Poner la IP en el campo correspondiente y cambiar a network
+            document.getElementById(`type-${area}`).value = 'network';
+            document.getElementById(`host-${area}`).value = ip;
+            toggleFields(area);
+            await savePrinter(area);
+            showToast(`✅ ${ip} asignada a ${area.toUpperCase()}`);
+        }
+
+        // ── Init ──
+        loadConfig();
         fetchStatus();
         fetchLogs();
         setInterval(fetchStatus, 5000);
