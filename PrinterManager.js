@@ -249,6 +249,117 @@ class PrinterManager {
         return lines.join('\n');
     }
 
+    // Formatear precuenta (verificadora)
+    formatPrecuenta(data) {
+        const lines = [];
+        const sep = '-'.repeat(32);
+        const now = new Date();
+
+        lines.push('');
+        lines.push('  *** PRECUENTA ***');
+        lines.push(sep);
+        if (data.tenant_nombre) lines.push(`  ${data.tenant_nombre}`);
+        lines.push(`Fecha: ${now.toLocaleDateString('es-CO')} ${now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`);
+        lines.push(`Mesa: ${data.mesa_numero || ''}`);
+        lines.push(`Mesero: ${data.mesero || ''}`);
+        lines.push(sep);
+
+        if (data.items) {
+            lines.push('Cant  Producto          Total');
+            lines.push(sep);
+            data.items.forEach(item => {
+                const cant = String(item.cantidad || 1).padStart(3, ' ');
+                const nombre = (item.plato || item.nombre || '').substring(0, 16).padEnd(16, ' ');
+                const total = ((item.precio_unitario || 0) * (item.cantidad || 1)).toLocaleString('es-CO');
+                lines.push(`${cant}  ${nombre}  $${total}`);
+            });
+            lines.push(sep);
+        }
+
+        lines.push(`SUBTOTAL:  $${(data.subtotal || 0).toLocaleString('es-CO')}`);
+        if (data.monto_servicio > 0) lines.push(`SERVICIO:  $${data.monto_servicio.toLocaleString('es-CO')}`);
+        if (data.monto_iva > 0) lines.push(`IVA:       $${data.monto_iva.toLocaleString('es-CO')}`);
+        if (data.descuento_mesa > 0) lines.push(`DESC:     -$${data.descuento_mesa.toLocaleString('es-CO')}`);
+        lines.push(sep);
+        lines.push(`  TOTAL:   $${(data.total || 0).toLocaleString('es-CO')}`);
+        lines.push(sep);
+        lines.push('');
+        lines.push('  ** NO VALIDO COMO FACTURA **');
+        lines.push('  Documento de verificacion');
+        lines.push('');
+
+        return lines.join('\n');
+    }
+
+    // Formatear cierre de caja
+    formatCierreCaja(data) {
+        const lines = [];
+        const sep = '='.repeat(32);
+        const sep2 = '-'.repeat(32);
+        const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
+
+        lines.push('');
+        lines.push(sep);
+        lines.push('  CIERRE DE CAJA');
+        lines.push(sep);
+        lines.push(`Cajero: ${data.cajero || ''}`);
+        if (data.fecha_apertura) {
+            lines.push(`Apertura: ${new Date(data.fecha_apertura).toLocaleString('es-CO')}`);
+        }
+        lines.push(`Cierre:   ${new Date(data.fecha_cierre || Date.now()).toLocaleString('es-CO')}`);
+        lines.push(sep2);
+
+        lines.push('');
+        lines.push('VENTAS POR METODO DE PAGO:');
+        lines.push(sep2);
+        lines.push(`  Efectivo:      $${fmt(data.total_efectivo)}`);
+        lines.push(`  Datafono:      $${fmt(data.total_datafono)}`);
+        lines.push(`  Transferencia: $${fmt(data.total_transferencia)}`);
+        if (data.total_credito > 0) lines.push(`  Credito:       $${fmt(data.total_credito)}`);
+        lines.push(sep2);
+        lines.push(`  TOTAL VENTAS:  $${fmt(data.total_ventas)}`);
+
+        lines.push('');
+        lines.push('PROPINAS:');
+        lines.push(sep2);
+        if (data.propina_efectivo > 0) lines.push(`  Efectivo:      $${fmt(data.propina_efectivo)}`);
+        if (data.propina_datafono > 0) lines.push(`  Datafono:      $${fmt(data.propina_datafono)}`);
+        if (data.propina_transferencia > 0) lines.push(`  Transferencia: $${fmt(data.propina_transferencia)}`);
+        lines.push(`  TOTAL PROPINAS:$${fmt(data.total_propinas)}`);
+
+        if (data.total_descuentos > 0) {
+            lines.push('');
+            lines.push(`DESCUENTOS:     -$${fmt(data.total_descuentos)}`);
+        }
+
+        lines.push('');
+        lines.push(sep);
+        lines.push('RESUMEN EFECTIVO:');
+        lines.push(sep2);
+        lines.push(`  Inicial:    $${fmt(data.efectivo_inicial)}`);
+        lines.push(`  + Ventas:   $${fmt(data.total_efectivo)}`);
+        lines.push(`  + Propinas: $${fmt(data.propina_efectivo)}`);
+        lines.push(sep2);
+        lines.push(`  Esperado:   $${fmt(data.efectivo_esperado)}`);
+        lines.push(`  Contado:    $${fmt(data.efectivo_contado)}`);
+        const dif = Number(data.diferencia) || 0;
+        const difLabel = dif >= 0 ? `+$${fmt(dif)}` : `-$${fmt(Math.abs(dif))}`;
+        lines.push(`  DIFERENCIA: ${difLabel} ${dif === 0 ? '✓' : dif > 0 ? '(sobrante)' : '(faltante)'}`);
+
+        lines.push('');
+        lines.push(sep2);
+        lines.push(`Facturas: ${data.num_facturas || 0}`);
+        if (data.num_anulaciones > 0) lines.push(`Anulaciones: ${data.num_anulaciones}`);
+        if (data.observaciones) {
+            lines.push(sep2);
+            lines.push(`Obs: ${data.observaciones}`);
+        }
+        lines.push(sep);
+        lines.push('');
+
+        return lines.join('\n');
+    }
+
     // Log interno
     log(message) {
         const entry = { time: new Date().toISOString(), msg: message };

@@ -133,6 +133,28 @@ function connectWebSocket() {
             printerManager.log(`❌ Error imprimiendo factura: ${err.message}`);
         }
     });
+
+    // ── Escuchar precuentas → imprimir verificadora ──
+    socket.on('precuenta:generada', async (data) => {
+        try {
+            printerManager.log(`📋 Precuenta Mesa ${data.mesa_numero} → caja`);
+            const text = printerManager.formatPrecuenta(data);
+            await printerManager.print('caja', text);
+        } catch (err) {
+            printerManager.log(`❌ Error imprimiendo precuenta: ${err.message}`);
+        }
+    });
+
+    // ── Escuchar cierre de caja → imprimir resumen ──
+    socket.on('cierre:caja', async (data) => {
+        try {
+            printerManager.log(`📊 Cierre de caja → ${data.cajero}`);
+            const text = printerManager.formatCierreCaja(data);
+            await printerManager.print('caja', text);
+        } catch (err) {
+            printerManager.log(`❌ Error imprimiendo cierre: ${err.message}`);
+        }
+    });
 }
 
 // ============================================================
