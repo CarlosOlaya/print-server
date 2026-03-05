@@ -155,6 +155,17 @@ function connectWebSocket() {
             printerManager.log(`❌ Error imprimiendo cierre: ${err.message}`);
         }
     });
+
+    // ── Escuchar reportes de ventas → imprimir en caja ──
+    socket.on('reporte:ventas', async (data) => {
+        try {
+            printerManager.log(`📈 Reporte ventas: ${data.desde} → ${data.hasta}`);
+            const text = printerManager.formatReporteVentas(data);
+            await printerManager.print('caja', text);
+        } catch (err) {
+            printerManager.log(`❌ Error imprimiendo reporte: ${err.message}`);
+        }
+    });
 }
 
 // ============================================================

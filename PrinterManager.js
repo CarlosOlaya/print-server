@@ -360,6 +360,78 @@ class PrinterManager {
         return lines.join('\n');
     }
 
+    // Formatear reporte de ventas de productos
+    formatReporteVentas(data) {
+        const lines = [];
+        const sep = '='.repeat(32);
+        const sep2 = '-'.repeat(32);
+        const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
+
+        lines.push('');
+        lines.push(sep);
+        lines.push('  REPORTE DE VENTAS');
+        lines.push(sep);
+        lines.push(`Periodo: ${data.desde || ''} a ${data.hasta || ''}`);
+        lines.push(`Generado: ${new Date().toLocaleString('es-CO')}`);
+        lines.push(sep2);
+
+        // Resumen KPIs
+        if (data.resumen) {
+            const r = data.resumen;
+            lines.push('');
+            lines.push('RESUMEN:');
+            lines.push(sep2);
+            lines.push(`  Facturas:     ${r.total_facturas || 0}`);
+            lines.push(`  Venta bruta:  $${fmt(r.venta_bruta)}`);
+            if (r.total_descuentos > 0) lines.push(`  Descuentos:  -$${fmt(r.total_descuentos)}`);
+            lines.push(`  Venta neta:   $${fmt(r.venta_neta)}`);
+            if (r.total_propinas > 0) lines.push(`  Propinas:     $${fmt(r.total_propinas)}`);
+            lines.push(`  Ticket prom:  $${fmt(r.ticket_promedio)}`);
+            lines.push(`  Comensales:   ${r.total_comensales || 0}`);
+        }
+
+        // Productos vendidos
+        if (data.productos && data.productos.length > 0) {
+            lines.push('');
+            lines.push(sep);
+            lines.push('PRODUCTOS VENDIDOS:');
+            lines.push(sep2);
+            lines.push('Cant  Producto          Ingreso');
+            lines.push(sep2);
+
+            let totalCant = 0;
+            let totalIngreso = 0;
+            for (const p of data.productos) {
+                const cant = String(p.cantidad || 0).padStart(3, ' ');
+                const nombre = (p.nombre || '').substring(0, 16).padEnd(16, ' ');
+                const ingreso = (p.ingreso_neto || 0).toLocaleString('es-CO');
+                lines.push(`${cant}  ${nombre}  $${ingreso}`);
+                totalCant += Number(p.cantidad) || 0;
+                totalIngreso += Number(p.ingreso_neto) || 0;
+            }
+            lines.push(sep2);
+            lines.push(`${String(totalCant).padStart(3, ' ')}  ${'TOTAL'.padEnd(16, ' ')}  $${fmt(totalIngreso)}`);
+        }
+
+        // Métodos de pago
+        if (data.metodos && data.metodos.length > 0) {
+            lines.push('');
+            lines.push(sep2);
+            lines.push('METODOS DE PAGO:');
+            lines.push(sep2);
+            for (const m of data.metodos) {
+                const metodo = (m.metodo || '').substring(0, 16).padEnd(16, ' ');
+                lines.push(`  ${metodo} $${fmt(m.total)}`);
+            }
+        }
+
+        lines.push('');
+        lines.push(sep);
+        lines.push('');
+
+        return lines.join('\n');
+    }
+
     // Log interno
     log(message) {
         const entry = { time: new Date().toISOString(), msg: message };
