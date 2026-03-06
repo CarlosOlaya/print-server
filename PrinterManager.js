@@ -177,13 +177,13 @@ class PrinterManager {
     // Formatear payload de comanda a texto para impresora termica
     formatComanda(payload) {
         const lines = [];
-        const sep = '-'.repeat(32);
+        const sep = '-'.repeat(42);
         const now = new Date();
         const fecha = now.toLocaleDateString('es-CO');
         const hora = payload.hora || now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 
         lines.push('');
-        lines.push(`  COMANDA #${payload.comanda}`);
+        lines.push(`       COMANDA #${payload.comanda}`);
         lines.push(sep);
         lines.push(`Mesa: ${payload.mesa}`);
         lines.push(`Mesero: ${payload.mesero}`);
@@ -210,13 +210,13 @@ class PrinterManager {
     // Formatear factura a texto para impresora termica
     formatFactura(factura) {
         const lines = [];
-        const sep = '-'.repeat(32);
+        const sep = '-'.repeat(42);
         const now = new Date();
         const fecha = now.toLocaleDateString('es-CO');
         const hora = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 
         lines.push('');
-        lines.push(`  ${factura.numero_factura || 'FACTURA'}`);
+        lines.push(`       ${factura.numero_factura || 'FACTURA'}`);
         lines.push(sep);
         lines.push(`Fecha: ${fecha}  ${hora}`);
         lines.push(`Mesa: ${factura.mesa_numero || ''}`);
@@ -225,11 +225,11 @@ class PrinterManager {
         lines.push(sep);
 
         if (factura.items) {
-            lines.push('Cant  Producto          Total');
+            lines.push('Cant  Producto                Total');
             lines.push(sep);
             factura.items.forEach(item => {
                 const cant = String(item.cantidad || 1).padStart(3, ' ');
-                const nombre = (item.nombre || item.plato || '').substring(0, 16).padEnd(16, ' ');
+                const nombre = (item.nombre || item.plato || '').substring(0, 22).padEnd(22, ' ');
                 const total = ((item.precio_unitario || 0) * (item.cantidad || 1)).toLocaleString('es-CO');
                 lines.push(`${cant}  ${nombre}  $${total}`);
             });
@@ -255,13 +255,13 @@ class PrinterManager {
     // Formatear precuenta (verificadora)
     formatPrecuenta(data) {
         const lines = [];
-        const sep = '-'.repeat(32);
+        const sep = '-'.repeat(42);
         const now = new Date();
         const fecha = now.toLocaleDateString('es-CO');
         const hora = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 
         lines.push('');
-        lines.push('  *** PRECUENTA ***');
+        lines.push('        *** PRECUENTA ***');
         lines.push(sep);
         if (data.tenant_nombre) lines.push(`  ${data.tenant_nombre}`);
         lines.push(`Fecha: ${fecha}  ${hora}`);
@@ -270,11 +270,11 @@ class PrinterManager {
         lines.push(sep);
 
         if (data.items) {
-            lines.push('Cant  Producto          Total');
+            lines.push('Cant  Producto                Total');
             lines.push(sep);
             data.items.forEach(item => {
                 const cant = String(item.cantidad || 1).padStart(3, ' ');
-                const nombre = (item.nombre || item.plato || '').substring(0, 16).padEnd(16, ' ');
+                const nombre = (item.nombre || item.plato || '').substring(0, 22).padEnd(22, ' ');
                 const total = ((item.precio_unitario || 0) * (item.cantidad || 1)).toLocaleString('es-CO');
                 lines.push(`${cant}  ${nombre}  $${total}`);
             });
@@ -299,13 +299,13 @@ class PrinterManager {
     // Formatear cierre de caja
     formatCierreCaja(data) {
         const lines = [];
-        const sep = '='.repeat(32);
-        const sep2 = '-'.repeat(32);
+        const sep = '='.repeat(42);
+        const sep2 = '-'.repeat(42);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
         lines.push('');
         lines.push(sep);
-        lines.push('  CIERRE DE CAJA');
+        lines.push('         CIERRE DE CAJA');
         lines.push(sep);
         lines.push(`Cajero: ${data.cajero || ''}`);
         if (data.fecha_apertura) {
@@ -368,13 +368,13 @@ class PrinterManager {
     // Formatear reporte de ventas de productos
     formatReporteVentas(data) {
         const lines = [];
-        const sep = '='.repeat(32);
-        const sep2 = '-'.repeat(32);
+        const sep = '='.repeat(42);
+        const sep2 = '-'.repeat(42);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
         lines.push('');
         lines.push(sep);
-        lines.push('  REPORTE DE VENTAS');
+        lines.push('       REPORTE DE VENTAS');
         lines.push(sep);
         lines.push(`Periodo: ${data.desde || ''} a ${data.hasta || ''}`);
         lines.push(`Generado: ${new Date().toLocaleString('es-CO')}`);
@@ -440,9 +440,9 @@ class PrinterManager {
     _footer() {
         const lines = [];
         lines.push('');
-        lines.push('    - - -  Foodly  - - -');
-        lines.push(' Carlos Olaya Dev');
-        lines.push('     www.foodly.com');
+        lines.push('       - - -  Foodly  - - -');
+        lines.push('        Carlos Olaya Dev');
+        lines.push('         www.foodly.com');
         lines.push('');
         // Espacio para que la impresora avance
         // y la tirilla no se corte antes del footer
