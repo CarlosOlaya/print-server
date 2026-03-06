@@ -11,6 +11,9 @@ class PrinterManager {
         this.printers = {};
         this.logs = [];
         this.maxLogs = 200;
+        // Cola de impresión por impresora
+        this._queues = {};   // { area: [{ text, resolve, reject }] }
+        this._printing = {}; // { area: boolean }
     }
 
     // Registrar una impresora por area
@@ -30,7 +33,7 @@ class PrinterManager {
         this.log(`📠 Impresora "${area}" registrada (${detail})`);
     }
 
-    // Imprimir texto en la impresora del area indicada
+    // Encolar impresión (evita colisiones si llegan varias comandas a la vez)
     async print(area, text) {
         const printer = this.printers[area];
 
@@ -43,29 +46,57 @@ class PrinterManager {
             return false;
         }
 
-        try {
-            if (printer.type === 'network') {
-                await this.printNetwork(printer, text);
-            } else if (printer.type === 'windows') {
-                await this.printWindows(printer, text, area);
-            } else if (printer.type === 'none') {
-                this.log(`🖨️ [SIMULADO - ${area}] Imprimiendo ${text.length} caracteres`);
-                console.log('\n' + '='.repeat(40));
-                console.log(`IMPRESION SIMULADA → ${area.toUpperCase()}`);
-                console.log('='.repeat(40));
-                console.log(text);
-                console.log('='.repeat(40) + '\n');
-            }
+        // Encolar el trabajo
+        return new Promise((resolve, reject) => {
+            if (!this._queues[area]) this._queues[area] = [];
+            this._queues[area].push({ text, resolve, reject });
+            this._processQueue(area);
+        });
+    }
 
+    // Procesar cola de una impresora (un trabajo a la vez)
+    async _processQueue(area) {
+        if (this._printing[area]) return; // ya procesando
+        if (!this._queues[area] || this._queues[area].length === 0) return;
+
+        this._printing[area] = true;
+        const job = this._queues[area].shift();
+        const printer = this.printers[area];
+
+        try {
+            await this._sendToPrinter(printer, job.text, area);
             printer.status = 'ok';
             printer.lastPrint = new Date().toISOString();
             printer.printCount++;
             this.log(`✅ Impreso en ${area} (#${printer.printCount})`);
-            return true;
+            job.resolve(true);
         } catch (error) {
             printer.status = 'error: ' + error.message;
             this.log(`❌ Error imprimiendo en ${area}: ${error.message}`);
-            return false;
+            job.resolve(false);
+        }
+
+        this._printing[area] = false;
+
+        // Esperar un momento breve entre trabajos para que la impresora respire
+        if (this._queues[area] && this._queues[area].length > 0) {
+            setTimeout(() => this._processQueue(area), 300);
+        }
+    }
+
+    // Enviar datos directamente a la impresora
+    async _sendToPrinter(printer, text, area) {
+        if (printer.type === 'network') {
+            await this.printNetwork(printer, text);
+        } else if (printer.type === 'windows') {
+            await this.printWindows(printer, text, area);
+        } else if (printer.type === 'none') {
+            this.log(`🖨️ [SIMULADO - ${area}] Imprimiendo ${text.length} caracteres`);
+            console.log('\n' + '='.repeat(40));
+            console.log(`IMPRESION SIMULADA → ${area.toUpperCase()}`);
+            console.log('='.repeat(40));
+            console.log(text);
+            console.log('='.repeat(40) + '\n');
         }
     }
 
@@ -89,7 +120,7 @@ class PrinterManager {
                     ESC + '@',           // Inicializar
                     ESC + 'a' + '\x01', // Centrar
                     text,
-                    '\n\n\n',
+                    '\n',
                     GS + 'V' + '\x00',  // Cortar papel
                 ].join('');
 
@@ -128,7 +159,7 @@ class PrinterManager {
             ESC + '@' +           // Inicializar
             ESC + 'a' + '\x01' + // Centrar
             text +
-            '\n\n\n' +
+            '\n' +
             GS + 'V' + '\x00',  // Cortar papel
             'latin1'
         );
@@ -182,7 +213,6 @@ class PrinterManager {
         const fecha = now.toLocaleDateString('es-CO');
         const hora = payload.hora || now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 
-        lines.push('');
         lines.push(`       COMANDA #${payload.comanda}`);
         lines.push(sep);
         lines.push(`Mesa: ${payload.mesa}`);
@@ -215,7 +245,6 @@ class PrinterManager {
         const fecha = now.toLocaleDateString('es-CO');
         const hora = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 
-        lines.push('');
         lines.push(`       ${factura.numero_factura || 'FACTURA'}`);
         lines.push(sep);
         lines.push(`Fecha: ${fecha}  ${hora}`);
@@ -260,7 +289,6 @@ class PrinterManager {
         const fecha = now.toLocaleDateString('es-CO');
         const hora = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 
-        lines.push('');
         lines.push('        *** PRECUENTA ***');
         lines.push(sep);
         if (data.tenant_nombre) lines.push(`  ${data.tenant_nombre}`);
@@ -303,7 +331,6 @@ class PrinterManager {
         const sep2 = '-'.repeat(42);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
-        lines.push('');
         lines.push(sep);
         lines.push('         CIERRE DE CAJA');
         lines.push(sep);
@@ -372,7 +399,6 @@ class PrinterManager {
         const sep2 = '-'.repeat(42);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
-        lines.push('');
         lines.push(sep);
         lines.push('       REPORTE DE VENTAS');
         lines.push(sep);
@@ -443,12 +469,8 @@ class PrinterManager {
         lines.push('       - - -  Foodly  - - -');
         lines.push('        Carlos Olaya Dev');
         lines.push('         www.foodly.com');
-        lines.push('');
-        // Espacio para que la impresora avance
-        // y la tirilla no se corte antes del footer
-        lines.push('');
-        lines.push('');
-        lines.push('');
+        // Espacio mínimo para que la impresora
+        // avance y no corte el footer
         lines.push('');
         lines.push('');
         return lines.join('\n');
