@@ -188,8 +188,13 @@ function normalizeArea(area) {
     const map = {
         'barra': 'bar',
         'bar': 'bar',
+        'bebidas': 'bar',
+        'tragos': 'bar',
         'cocina': 'cocina',
         'kitchen': 'cocina',
+        'pasteleria': 'pasteleria',
+        'reposteria': 'pasteleria',
+        'postres': 'pasteleria',
         'caja': 'caja',
         'cashier': 'caja',
     };
