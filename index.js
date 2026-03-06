@@ -134,6 +134,17 @@ function connectWebSocket() {
         }
     });
 
+    // ── Escuchar facturas cerradas → imprimir ticket de venta ──
+    socket.on('factura:cerrada', async (data) => {
+        try {
+            printerManager.log(`🧾 Factura ${data.numero_factura} Mesa ${data.mesa_numero} → caja`);
+            const text = printerManager.formatFactura(data);
+            await printerManager.print('caja', text);
+        } catch (err) {
+            printerManager.log(`❌ Error imprimiendo factura: ${err.message}`);
+        }
+    });
+
     // ── Escuchar precuentas → imprimir verificadora ──
     socket.on('precuenta:generada', async (data) => {
         try {
