@@ -117,10 +117,11 @@ class PrinterManager {
                 const ESC = '\x1B';
                 const GS = '\x1D';
                 const commands = [
-                    ESC + '@',           // Inicializar
+                    ESC + '@',                       // Inicializar
+                    GS + 'L' + '\x00' + '\x00',    // Margen izquierdo = 0
                     text,
                     '\n',
-                    GS + 'V' + '\x00',  // Cortar papel
+                    GS + 'V' + '\x00',              // Cortar papel
                 ].join('');
 
                 client.write(commands, () => {
@@ -155,10 +156,11 @@ class PrinterManager {
         const ESC = '\x1B';
         const GS = '\x1D';
         const rawData = Buffer.from(
-            ESC + '@' +           // Inicializar
+            ESC + '@' +                          // Inicializar
+            GS + 'L' + '\x00' + '\x00' +       // Margen izquierdo = 0
             text +
             '\n' +
-            GS + 'V' + '\x00',  // Cortar papel
+            GS + 'V' + '\x00',                  // Cortar papel
             'latin1'
         );
 
@@ -207,7 +209,7 @@ class PrinterManager {
     // COMANDA — estilo POS profesional
     // ══════════════════════════════════════════
     formatComanda(payload) {
-        const W = 42;
+        const W = 48;
         const lines = [];
         const sep = '-'.repeat(W);
         const sep2 = '='.repeat(W);
@@ -250,6 +252,7 @@ class PrinterManager {
         lines.push('');
         lines.push('');
         lines.push('');
+        lines.push('');
 
         return lines.join('\n');
     }
@@ -258,7 +261,7 @@ class PrinterManager {
     // FACTURA — estilo Doc. Equivalente POS
     // ══════════════════════════════════════════
     formatFactura(factura) {
-        const W = 42;
+        const W = 48;
         const lines = [];
         const sep = '-'.repeat(W);
         const sep2 = '='.repeat(W);
@@ -288,13 +291,13 @@ class PrinterManager {
         // Tabla items
         if (factura.items) {
             //        CANT  PRODUCTO         V.UNI     TOTAL
-            lines.push('CANT PRODUCTO          V.UNI   TOTAL');
+            lines.push('CANT  PRODUCTO                V.UNI    TOTAL');
             lines.push(sep);
             factura.items.forEach(item => {
                 const cant = String(item.cantidad || 1).padStart(3, ' ');
-                const nombre = (item.nombre || item.plato || '').substring(0, 18).padEnd(18, ' ');
-                const vuni = this._rpad(fmt(item.precio_unitario || 0), 7);
-                const total = this._rpad(fmt((item.precio_unitario || 0) * (item.cantidad || 1)), 7);
+                const nombre = (item.nombre || item.plato || '').substring(0, 22).padEnd(22, ' ');
+                const vuni = this._rpad(fmt(item.precio_unitario || 0), 8);
+                const total = this._rpad(fmt((item.precio_unitario || 0) * (item.cantidad || 1)), 8);
                 lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
             });
             lines.push(sep);
@@ -337,7 +340,7 @@ class PrinterManager {
     // PRECUENTA — Verificación de Cuenta
     // ══════════════════════════════════════════
     formatPrecuenta(data) {
-        const W = 42;
+        const W = 48;
         const lines = [];
         const sep = '-'.repeat(W);
         const sep2 = '='.repeat(W);
@@ -362,14 +365,14 @@ class PrinterManager {
 
         // Tabla items
         if (data.items) {
-            lines.push('CANT PRODUCTO          V.UNI   TOTAL');
+            lines.push('CANT  PRODUCTO                V.UNI    TOTAL');
             lines.push(sep);
             data.items.forEach(item => {
                 const cant = String(item.cantidad || 1).padStart(3, ' ');
-                const nombre = (item.nombre || item.plato || '').substring(0, 18).padEnd(18, ' ');
+                const nombre = (item.nombre || item.plato || '').substring(0, 22).padEnd(22, ' ');
                 const precio = Number(item.precio_unitario) || 0;
-                const vuni = this._rpad(fmt(precio), 7);
-                const total = this._rpad(fmt(precio * (item.cantidad || 1)), 7);
+                const vuni = this._rpad(fmt(precio), 8);
+                const total = this._rpad(fmt(precio * (item.cantidad || 1)), 8);
                 lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
             });
             lines.push(sep);
@@ -399,8 +402,8 @@ class PrinterManager {
     // Formatear cierre de caja
     formatCierreCaja(data) {
         const lines = [];
-        const sep = '='.repeat(42);
-        const sep2 = '-'.repeat(42);
+        const sep = '='.repeat(48);
+        const sep2 = '-'.repeat(48);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
         lines.push(sep);
@@ -467,8 +470,8 @@ class PrinterManager {
     // Formatear reporte de ventas de productos
     formatReporteVentas(data) {
         const lines = [];
-        const sep = '='.repeat(42);
-        const sep2 = '-'.repeat(42);
+        const sep = '='.repeat(48);
+        const sep2 = '-'.repeat(48);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
         lines.push(sep);
@@ -553,7 +556,7 @@ class PrinterManager {
 
     // ── Footer + espacio de corte ──
     _footer() {
-        const W = 42;
+        const W = 48;
         const lines = [];
         lines.push('');
         lines.push(this._center('- - -  Foodly  - - -', W));

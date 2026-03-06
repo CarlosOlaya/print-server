@@ -277,10 +277,10 @@ app.post('/test-print/:area', async (req, res) => {
     const { area } = req.params;
     const testText = [
         '', '    *** PRUEBA DE IMPRESION ***',
-        '-'.repeat(42),
+        '-'.repeat(48),
         `  Area: ${area.toUpperCase()}`,
         `  Fecha: ${new Date().toLocaleString('es-CO')}`,
-        '-'.repeat(42),
+        '-'.repeat(48),
         '  Si ves esto, la impresora',
         '  esta correctamente configurada!',
         '',
