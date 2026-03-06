@@ -205,120 +205,195 @@ class PrinterManager {
         });
     }
 
-    // Formatear payload de comanda a texto para impresora termica
+    // ══════════════════════════════════════════
+    // COMANDA — estilo POS profesional
+    // ══════════════════════════════════════════
     formatComanda(payload) {
+        const W = 42;
         const lines = [];
-        const sep = '-'.repeat(42);
+        const sep = '-'.repeat(W);
+        const sep2 = '='.repeat(W);
         const now = new Date();
         const fecha = now.toLocaleDateString('es-CO');
-        const hora = payload.hora || now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+        const hora = payload.hora || now.toLocaleTimeString('es-CO');
 
-        lines.push(`       COMANDA #${payload.comanda}`);
+        // Header
+        lines.push(this._center(`#${payload.comanda}`, W));
+        lines.push(this._center(`COMANDA`, W));
+        lines.push(sep2);
+        lines.push(this._center((payload.area || '').toUpperCase(), W));
         lines.push(sep);
+
+        // Info mesa
         lines.push(`Mesa: ${payload.mesa}`);
         lines.push(`Mesero: ${payload.mesero}`);
-        if (payload.comensales) lines.push(`Comensales: ${payload.comensales}`);
-        lines.push(`Area: ${(payload.area || '').toUpperCase()}`);
-        lines.push(`${fecha}  ${hora}`);
+        if (payload.comensales) lines.push(`Personas: ${payload.comensales}`);
+        lines.push(`Fecha: ${fecha}   Hora: ${hora}`);
         lines.push(sep);
 
+        // Encabezado tabla
+        lines.push('PRODUCTO' + ' '.repeat(W - 8 - 8) + 'CANTIDAD');
+        lines.push(sep);
+
+        // Items
         (payload.items || []).forEach(item => {
-            const cant = String(item.cantidad || 1).padStart(2, ' ');
-            const nombre = item.nombre || item.producto || 'Sin nombre';
-            lines.push(`${cant} x ${nombre}`);
+            const nombre = (item.nombre || item.producto || '').toUpperCase();
+            const cant = String(item.cantidad || 1);
+            const cantCol = `UND  ${cant.padStart(3, ' ')}`;
+            if (nombre.length <= W - cantCol.length - 2) {
+                lines.push(nombre.padEnd(W - cantCol.length, ' ') + cantCol);
+            } else {
+                lines.push(nombre);
+                lines.push(' '.repeat(W - cantCol.length) + cantCol);
+            }
             if (item.comentario) {
-                lines.push(`     >> ${item.comentario}`);
+                lines.push(`  >> ${item.comentario}`);
             }
         });
 
-        lines.push(sep);
-        lines.push(this._footer());
+        lines.push(sep2);
+        lines.push('');
 
         return lines.join('\n');
     }
 
-    // Formatear factura a texto para impresora termica
+    // ══════════════════════════════════════════
+    // FACTURA — estilo Doc. Equivalente POS
+    // ══════════════════════════════════════════
     formatFactura(factura) {
+        const W = 42;
         const lines = [];
-        const sep = '-'.repeat(42);
+        const sep = '-'.repeat(W);
+        const sep2 = '='.repeat(W);
         const now = new Date();
         const fecha = now.toLocaleDateString('es-CO');
-        const hora = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+        const hora = now.toLocaleTimeString('es-CO');
+        const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
-        lines.push(`       ${factura.numero_factura || 'FACTURA'}`);
+        // Empresa header
+        if (factura.tenant_nombre) {
+            lines.push(this._center(factura.tenant_nombre.toUpperCase(), W));
+        }
+        if (factura.nit) lines.push(this._center(`NIT: ${factura.nit}`, W));
         lines.push(sep);
-        lines.push(`Fecha: ${fecha}  ${hora}`);
+
+        // Documento
+        lines.push(this._center(factura.numero_factura || 'FACTURA DE VENTA', W));
+        lines.push(sep);
+
+        // Info
+        lines.push(`Fecha: ${fecha}        Hora: ${hora}`);
         lines.push(`Mesa: ${factura.mesa_numero || ''}`);
         lines.push(`Mesero: ${factura.mesero || ''}`);
         lines.push(`Cliente: ${factura.cliente || 'Consumidor final'}`);
         lines.push(sep);
 
+        // Tabla items
         if (factura.items) {
-            lines.push('Cant  Producto                Total');
+            //        CANT  PRODUCTO         V.UNI     TOTAL
+            lines.push('CANT PRODUCTO          V.UNI   TOTAL');
             lines.push(sep);
             factura.items.forEach(item => {
                 const cant = String(item.cantidad || 1).padStart(3, ' ');
-                const nombre = (item.nombre || item.plato || '').substring(0, 22).padEnd(22, ' ');
-                const total = ((item.precio_unitario || 0) * (item.cantidad || 1)).toLocaleString('es-CO');
-                lines.push(`${cant}  ${nombre}  $${total}`);
+                const nombre = (item.nombre || item.plato || '').substring(0, 18).padEnd(18, ' ');
+                const vuni = this._rpad(fmt(item.precio_unitario || 0), 7);
+                const total = this._rpad(fmt((item.precio_unitario || 0) * (item.cantidad || 1)), 7);
+                lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
             });
             lines.push(sep);
         }
 
-        lines.push(`SUBTOTAL:  $${(factura.subtotal || 0).toLocaleString('es-CO')}`);
-        if (factura.monto_servicio > 0) lines.push(`SERVICIO:  $${factura.monto_servicio.toLocaleString('es-CO')}`);
-        if (factura.monto_iva > 0) lines.push(`IVA:       $${factura.monto_iva.toLocaleString('es-CO')}`);
-        if (factura.descuento_monto > 0) lines.push(`DESC:     -$${factura.descuento_monto.toLocaleString('es-CO')}`);
-        if (factura.propina > 0) lines.push(`PROPINA:   $${factura.propina.toLocaleString('es-CO')}`);
+        // Totales
+        lines.push(this._lr('SUBTOTAL:', `$${fmt(factura.subtotal)}`, W));
+        if (factura.descuento_monto > 0) {
+            lines.push(this._lr('DESCUENTO:', `-$${fmt(factura.descuento_monto)}`, W));
+        }
+        if (factura.monto_servicio > 0) {
+            lines.push(this._lr('SERVICIO:', `$${fmt(factura.monto_servicio)}`, W));
+        }
+        if (factura.monto_iva > 0) {
+            lines.push(this._lr('IVA:', `$${fmt(factura.monto_iva)}`, W));
+        }
+        if (factura.propina > 0) {
+            lines.push(this._lr('PROPINA:', `$${fmt(factura.propina)}`, W));
+        }
+        lines.push(sep2);
+        lines.push(this._lr('TOTAL FACTURA:', `$ ${fmt(factura.total)}`, W));
+        lines.push(sep2);
+
+        // Forma de pago
+        if (factura.metodo_pago) {
+            lines.push(this._center('FORMAS DE PAGO', W));
+            lines.push(sep);
+            const metodo = (factura.metodo_pago || '').charAt(0).toUpperCase() + (factura.metodo_pago || '').slice(1);
+            lines.push(this._lr(metodo, `$${fmt(factura.total)}`, W));
+        }
         lines.push(sep);
-        lines.push(`  TOTAL:   $${(factura.total || 0).toLocaleString('es-CO')}`);
-        lines.push(sep);
-        lines.push(`Pago: ${factura.metodo_pago || ''}`);
         lines.push('');
-        lines.push('  Gracias por su visita!');
+        lines.push(this._center('Gracias por su visita!', W));
         lines.push(this._footer());
 
         return lines.join('\n');
     }
 
-    // Formatear precuenta (verificadora)
+    // ══════════════════════════════════════════
+    // PRECUENTA — Verificación de Cuenta
+    // ══════════════════════════════════════════
     formatPrecuenta(data) {
+        const W = 42;
         const lines = [];
-        const sep = '-'.repeat(42);
+        const sep = '-'.repeat(W);
+        const sep2 = '='.repeat(W);
         const now = new Date();
         const fecha = now.toLocaleDateString('es-CO');
-        const hora = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+        const hora = now.toLocaleTimeString('es-CO');
+        const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
-        lines.push('        *** PRECUENTA ***');
+        // Header
         lines.push(sep);
-        if (data.tenant_nombre) lines.push(`  ${data.tenant_nombre}`);
-        lines.push(`Fecha: ${fecha}  ${hora}`);
-        lines.push(`Mesa: ${data.mesa_numero || ''}`);
-        lines.push(`Mesero: ${data.mesero || ''}`);
+        lines.push(this._center('VERIFICACION DE CUENTA', W));
+        if (data.tenant_nombre) {
+            lines.push(this._center(data.tenant_nombre.toUpperCase(), W));
+        }
         lines.push(sep);
 
+        // Info
+        lines.push(`Fecha: ${fecha}        Hora: ${hora}`);
+        lines.push(`MESA: ${data.mesa_numero || ''}`);
+        lines.push(`MESERO: ${data.mesero || ''}`);
+        lines.push(sep);
+
+        // Tabla items
         if (data.items) {
-            lines.push('Cant  Producto                Total');
+            lines.push('CANT PRODUCTO          V.UNI   TOTAL');
             lines.push(sep);
             data.items.forEach(item => {
                 const cant = String(item.cantidad || 1).padStart(3, ' ');
-                const nombre = (item.nombre || item.plato || '').substring(0, 22).padEnd(22, ' ');
-                const total = ((item.precio_unitario || 0) * (item.cantidad || 1)).toLocaleString('es-CO');
-                lines.push(`${cant}  ${nombre}  $${total}`);
+                const nombre = (item.nombre || item.plato || '').substring(0, 18).padEnd(18, ' ');
+                const precio = Number(item.precio_unitario) || 0;
+                const vuni = this._rpad(fmt(precio), 7);
+                const total = this._rpad(fmt(precio * (item.cantidad || 1)), 7);
+                lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
             });
             lines.push(sep);
         }
 
-        lines.push(`SUBTOTAL:  $${(data.subtotal || 0).toLocaleString('es-CO')}`);
-        if (data.monto_servicio > 0) lines.push(`SERVICIO:  $${data.monto_servicio.toLocaleString('es-CO')}`);
-        if (data.monto_iva > 0) lines.push(`IVA:       $${data.monto_iva.toLocaleString('es-CO')}`);
-        if (data.descuento_mesa > 0) lines.push(`DESC:     -$${data.descuento_mesa.toLocaleString('es-CO')}`);
-        lines.push(sep);
-        lines.push(`  TOTAL:   $${(data.total || 0).toLocaleString('es-CO')}`);
-        lines.push(sep);
+        // Totales
+        if (data.monto_servicio > 0) {
+            lines.push(this._lr('Servicio:', `$${fmt(data.monto_servicio)}`, W));
+        }
+        if (data.monto_iva > 0) {
+            lines.push(this._lr('IVA:', `$${fmt(data.monto_iva)}`, W));
+        }
+        if (data.descuento_mesa > 0) {
+            lines.push(this._lr('Descuento:', `-$${fmt(data.descuento_mesa)}`, W));
+        }
+        lines.push(sep2);
+        lines.push(this._lr('TOTAL:', `$ ${fmt(data.total)}`, W));
+        lines.push(sep2);
         lines.push('');
-        lines.push('  ** NO VALIDO COMO FACTURA **');
-        lines.push('  Documento de verificacion');
+        lines.push(this._center('** NO VALIDO COMO FACTURA **', W));
+        lines.push(this._center('Documento de verificacion', W));
         lines.push(this._footer());
 
         return lines.join('\n');
@@ -462,13 +537,31 @@ class PrinterManager {
         return lines.join('\n');
     }
 
+    // ── Helpers de formato ──
+    _center(text, width = 42) {
+        if (text.length >= width) return text;
+        const pad = Math.floor((width - text.length) / 2);
+        return ' '.repeat(pad) + text;
+    }
+
+    _lr(left, right, width = 42) {
+        const gap = width - left.length - right.length;
+        return left + ' '.repeat(Math.max(gap, 1)) + right;
+    }
+
+    _rpad(val, width) {
+        const s = String(val);
+        return s.length >= width ? s : ' '.repeat(width - s.length) + s;
+    }
+
     // ── Footer + espacio de corte ──
     _footer() {
+        const W = 42;
         const lines = [];
         lines.push('');
-        lines.push('       - - -  Foodly  - - -');
-        lines.push('        Carlos Olaya Dev');
-        lines.push('         www.foodly.com');
+        lines.push(this._center('- - -  Foodly  - - -', W));
+        lines.push(this._center('Carlos Olaya Dev', W));
+        lines.push(this._center('www.foodly.com', W));
         // Espacio mínimo para que la impresora
         // avance y no corte el footer
         lines.push('');
