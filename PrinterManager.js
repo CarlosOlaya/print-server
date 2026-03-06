@@ -118,7 +118,6 @@ class PrinterManager {
                 const GS = '\x1D';
                 const commands = [
                     ESC + '@',           // Inicializar
-                    ESC + 'a' + '\x01', // Centrar
                     text,
                     '\n',
                     GS + 'V' + '\x00',  // Cortar papel
@@ -157,7 +156,6 @@ class PrinterManager {
         const GS = '\x1D';
         const rawData = Buffer.from(
             ESC + '@' +           // Inicializar
-            ESC + 'a' + '\x01' + // Centrar
             text +
             '\n' +
             GS + 'V' + '\x00',  // Cortar papel
@@ -217,12 +215,9 @@ class PrinterManager {
         const fecha = now.toLocaleDateString('es-CO');
         const hora = payload.hora || now.toLocaleTimeString('es-CO');
 
-        // Header
-        lines.push(this._center(`#${payload.comanda}`, W));
-        lines.push(this._center(`COMANDA`, W));
+        // Header compacto
+        lines.push(this._center(`COMANDA #${payload.comanda} | ${(payload.area || '').toUpperCase()}`, W));
         lines.push(sep2);
-        lines.push(this._center((payload.area || '').toUpperCase(), W));
-        lines.push(sep);
 
         // Info mesa
         lines.push(`Mesa: ${payload.mesa}`);
@@ -252,6 +247,8 @@ class PrinterManager {
         });
 
         lines.push(sep2);
+        lines.push('');
+        lines.push('');
         lines.push('');
 
         return lines.join('\n');
