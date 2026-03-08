@@ -209,6 +209,11 @@ class PrinterManager {
     // COMANDA — estilo POS profesional
     // ══════════════════════════════════════════
     formatComanda(payload) {
+        // Detectar si es una comanda de anulación
+        if (payload.tipo_comanda === 'anulacion') {
+            return this.formatComandaAnulacion(payload);
+        }
+
         const W = 48;
         const lines = [];
         const sep = '-'.repeat(W);
@@ -249,6 +254,70 @@ class PrinterManager {
         });
 
         lines.push(sep2);
+        lines.push('');
+        lines.push('');
+        lines.push('');
+        lines.push('');
+
+        return lines.join('\n');
+    }
+
+    // ══════════════════════════════════════════
+    // ANULACIÓN — formato diferenciado POS
+    // ══════════════════════════════════════════
+    formatComandaAnulacion(payload) {
+        const W = 48;
+        const lines = [];
+        const sep = '-'.repeat(W);
+        const sep2 = '='.repeat(W);
+        const sepX = 'X'.repeat(W);
+        const now = new Date();
+        const fecha = now.toLocaleDateString('es-CO');
+        const hora = payload.hora || now.toLocaleTimeString('es-CO');
+
+        // Header prominente de ANULACIÓN
+        lines.push(sep2);
+        lines.push(this._center('*** ANULACION ***', W));
+        lines.push(this._center(`#${payload.comanda} | ${(payload.area || '').toUpperCase()}`, W));
+        lines.push(sep2);
+
+        // Info mesa
+        lines.push(`Mesa: ${payload.mesa}`);
+        lines.push(`Mesero: ${payload.mesero}`);
+        lines.push(`Fecha: ${fecha}   Hora: ${hora}`);
+        lines.push(sep);
+
+        // Motivo de anulación
+        if (payload.motivo) {
+            lines.push(this._center('MOTIVO:', W));
+            lines.push(this._center(payload.motivo.toUpperCase(), W));
+            lines.push(sep);
+        }
+
+        // Encabezado tabla
+        lines.push(this._center('** ANULAR PLATO **', W));
+        lines.push(sep);
+
+        // Items con cantidad NEGATIVA
+        (payload.items || []).forEach(item => {
+            const nombre = (item.nombre || item.producto || '').toUpperCase();
+            const cant = Math.abs(Number(item.cantidad) || 1);
+            const cantCol = `UND  -${String(cant).padStart(2, ' ')}`;
+            if (nombre.length <= W - cantCol.length - 2) {
+                lines.push(nombre.padEnd(W - cantCol.length, ' ') + cantCol);
+            } else {
+                lines.push(nombre);
+                lines.push(' '.repeat(W - cantCol.length) + cantCol);
+            }
+            // Mostrar comentario/motivo
+            if (item.comentario) {
+                lines.push(`  >> ${item.comentario}`);
+            }
+        });
+
+        lines.push(sepX);
+        lines.push(this._center('** NO PREPARAR - ANULADO **', W));
+        lines.push(sepX);
         lines.push('');
         lines.push('');
         lines.push('');
@@ -378,19 +447,36 @@ class PrinterManager {
             lines.push(sep);
         }
 
-        // Totales
+        // Subtotal
+        lines.push(this._lr('SUBTOTAL:', `$${fmt(data.subtotal)}`, W));
+
+        // Detalle de cargos
+        if (data.descuento_mesa > 0) {
+            lines.push(this._lr('Descuento:', `-$${fmt(data.descuento_mesa)}`, W));
+        }
         if (data.monto_servicio > 0) {
             lines.push(this._lr('Servicio:', `$${fmt(data.monto_servicio)}`, W));
         }
         if (data.monto_iva > 0) {
             lines.push(this._lr('IVA:', `$${fmt(data.monto_iva)}`, W));
         }
-        if (data.descuento_mesa > 0) {
-            lines.push(this._lr('Descuento:', `-$${fmt(data.descuento_mesa)}`, W));
-        }
+
         lines.push(sep2);
         lines.push(this._lr('TOTAL:', `$ ${fmt(data.total)}`, W));
         lines.push(sep2);
+
+        // Propina sugerida
+        const propinaPct = Number(data.porcentaje_propina_sugerida) || 10;
+        const propinaMonto = Number(data.propina_sugerida) || Math.round((Number(data.subtotal) || 0) * propinaPct / 100);
+        if (propinaMonto > 0) {
+            lines.push('');
+            lines.push(this._center(`PROPINA SUGERIDA (${propinaPct}%)`, W));
+            lines.push(this._center(`$ ${fmt(propinaMonto)}`, W));
+            lines.push('');
+            lines.push(this._lr('TOTAL + PROPINA:', `$ ${fmt((Number(data.total) || 0) + propinaMonto)}`, W));
+        }
+
+        lines.push(sep);
         lines.push('');
         lines.push(this._center('** NO VALIDO COMO FACTURA **', W));
         lines.push(this._center('Documento de verificacion', W));
@@ -562,8 +648,12 @@ class PrinterManager {
         lines.push(this._center('- - -  Foodly  - - -', W));
         lines.push(this._center('Carlos Olaya Dev', W));
         lines.push(this._center('www.foodly.com', W));
-        // Espacio mínimo para que la impresora
-        // avance y no corte el footer
+        // Espacio amplio para que la impresora térmica
+        // avance lo suficiente antes de cortar y no
+        // pierda el footer. Equivale a ~5 líneas en blanco.
+        lines.push('');
+        lines.push('');
+        lines.push('');
         lines.push('');
         lines.push('');
         return lines.join('\n');

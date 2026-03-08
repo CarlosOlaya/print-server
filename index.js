@@ -116,7 +116,12 @@ function connectWebSocket() {
     // ── Escuchar nuevas comandas ──
     socket.on('comanda:nueva', async (data) => {
         try {
-            printerManager.log(`🔔 Comanda #${data.numero_comanda} → ${data.area_destino} (Mesa ${data.numero_mesa})`);
+            const esAnulacion = data.tipo_comanda === 'anulacion' || data.payload?.tipo_comanda === 'anulacion';
+            if (esAnulacion) {
+                printerManager.log(`🚫 ANULACIÓN #${data.numero_comanda} → ${data.area_destino} (Mesa ${data.numero_mesa})`);
+            } else {
+                printerManager.log(`🔔 Comanda #${data.numero_comanda} → ${data.area_destino} (Mesa ${data.numero_mesa})`);
+            }
             await handleNuevaComanda(data);
         } catch (err) {
             printerManager.log(`❌ Error procesando comanda: ${err.message}`);
@@ -127,17 +132,6 @@ function connectWebSocket() {
     socket.on('factura:cerrada', async (data) => {
         try {
             printerManager.log(`🧾 Factura ${data.numero_factura} cerrada → Mesa ${data.mesa_numero}`);
-            const text = printerManager.formatFactura(data);
-            await printerManager.print('caja', text);
-        } catch (err) {
-            printerManager.log(`❌ Error imprimiendo factura: ${err.message}`);
-        }
-    });
-
-    // ── Escuchar facturas cerradas → imprimir ticket de venta ──
-    socket.on('factura:cerrada', async (data) => {
-        try {
-            printerManager.log(`🧾 Factura ${data.numero_factura} Mesa ${data.mesa_numero} → caja`);
             const text = printerManager.formatFactura(data);
             await printerManager.print('caja', text);
         } catch (err) {
@@ -211,8 +205,17 @@ async function handleNuevaComanda(data) {
 
     const rawArea = data.area_destino || payload.area || 'cocina';
     const area = normalizeArea(rawArea);
+    const esAnulacion = data.tipo_comanda === 'anulacion' || payload.tipo_comanda === 'anulacion';
+
+    // formatComanda detecta automáticamente tipo_comanda y usa el formato correcto
     const text = printerManager.formatComanda(payload);
+
+    // Anulaciones se imprimen tanto en el área correspondiente como en caja
     const success = await printerManager.print(area, text);
+    if (esAnulacion && area !== 'caja') {
+        // Imprimir también en caja para que quede registro
+        await printerManager.print('caja', text);
+    }
 
     if (success && data.id) {
         try {
@@ -221,7 +224,8 @@ async function handleNuevaComanda(data) {
                 headers: { 'Content-Type': 'application/json' },
             });
             if (response.ok) {
-                printerManager.log(`✅ Comanda #${data.numero_comanda} marcada como impresa`);
+                const label = esAnulacion ? 'Anulación' : 'Comanda';
+                printerManager.log(`✅ ${label} #${data.numero_comanda} marcada como impresa`);
             }
         } catch (err) {
             printerManager.log(`⚠️ No se pudo marcar como impresa: ${err.message}`);
