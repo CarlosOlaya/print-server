@@ -210,12 +210,8 @@ async function handleNuevaComanda(data) {
     // formatComanda detecta automáticamente tipo_comanda y usa el formato correcto
     const text = printerManager.formatComanda(payload);
 
-    // Anulaciones se imprimen tanto en el área correspondiente como en caja
+    // Imprimir en el área correspondiente (cocina, bar, etc.)
     const success = await printerManager.print(area, text);
-    if (esAnulacion && area !== 'caja') {
-        // Imprimir también en caja para que quede registro
-        await printerManager.print('caja', text);
-    }
 
     if (success && data.id) {
         try {

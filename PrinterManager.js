@@ -365,9 +365,30 @@ class PrinterManager {
             factura.items.forEach(item => {
                 const cant = String(item.cantidad || 1).padStart(3, ' ');
                 const nombre = (item.nombre || item.plato || '').substring(0, 22).padEnd(22, ' ');
-                const vuni = this._rpad(fmt(item.precio_unitario || 0), 8);
-                const total = this._rpad(fmt((item.precio_unitario || 0) * (item.cantidad || 1)), 8);
-                lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
+                const precio = Number(item.precio_unitario) || 0;
+                const cantNum = Number(item.cantidad) || 1;
+                const descPct = Number(item.descuento_porcentaje) || 0;
+                const descMonto = Number(item.descuento_monto) || 0;
+                const totalBruto = precio * cantNum;
+                const totalNeto = totalBruto - descMonto;
+
+                if (descPct >= 100) {
+                    // Cortesía: mostrar precio original tachado y $0
+                    const vuni = this._rpad(fmt(precio), 8);
+                    lines.push(`${cant}  ${nombre} ${vuni}       $0`);
+                    lines.push(`      ** CORTESIA **`);
+                } else if (descPct > 0) {
+                    // Descuento parcial
+                    const vuni = this._rpad(fmt(precio), 8);
+                    const total = this._rpad(fmt(totalNeto), 8);
+                    lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
+                    lines.push(`      Dcto -${descPct}% (-$${fmt(descMonto)})`);
+                } else {
+                    // Sin descuento
+                    const vuni = this._rpad(fmt(precio), 8);
+                    const total = this._rpad(fmt(totalBruto), 8);
+                    lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
+                }
             });
             lines.push(sep);
         }
@@ -440,9 +461,29 @@ class PrinterManager {
                 const cant = String(item.cantidad || 1).padStart(3, ' ');
                 const nombre = (item.nombre || item.plato || '').substring(0, 22).padEnd(22, ' ');
                 const precio = Number(item.precio_unitario) || 0;
-                const vuni = this._rpad(fmt(precio), 8);
-                const total = this._rpad(fmt(precio * (item.cantidad || 1)), 8);
-                lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
+                const cantNum = Number(item.cantidad) || 1;
+                const descPct = Number(item.descuento_porcentaje) || 0;
+                const descMonto = Number(item.descuento_monto) || 0;
+                const totalBruto = precio * cantNum;
+                const totalNeto = totalBruto - descMonto;
+
+                if (descPct >= 100) {
+                    // Cortesía: mostrar precio original tachado y $0
+                    const vuni = this._rpad(fmt(precio), 8);
+                    lines.push(`${cant}  ${nombre} ${vuni}       $0`);
+                    lines.push(`      ** CORTESIA **`);
+                } else if (descPct > 0) {
+                    // Descuento parcial
+                    const vuni = this._rpad(fmt(precio), 8);
+                    const total = this._rpad(fmt(totalNeto), 8);
+                    lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
+                    lines.push(`      Dcto -${descPct}% (-$${fmt(descMonto)})`);
+                } else {
+                    // Sin descuento
+                    const vuni = this._rpad(fmt(precio), 8);
+                    const total = this._rpad(fmt(totalBruto), 8);
+                    lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
+                }
             });
             lines.push(sep);
         }
@@ -461,22 +502,19 @@ class PrinterManager {
             lines.push(this._lr('IVA:', `$${fmt(data.monto_iva)}`, W));
         }
 
-        lines.push(sep2);
-        lines.push(this._lr('TOTAL:', `$ ${fmt(data.total)}`, W));
-        lines.push(sep2);
 
         // Propina sugerida
         const propinaPct = Number(data.porcentaje_propina_sugerida) || 10;
         const propinaMonto = Number(data.propina_sugerida) || Math.round((Number(data.subtotal) || 0) * propinaPct / 100);
         if (propinaMonto > 0) {
-            lines.push('');
-            lines.push(this._center(`PROPINA SUGERIDA (${propinaPct}%)`, W));
-            lines.push(this._center(`$ ${fmt(propinaMonto)}`, W));
-            lines.push('');
-            lines.push(this._lr('TOTAL + PROPINA:', `$ ${fmt((Number(data.total) || 0) + propinaMonto)}`, W));
+            lines.push(this._center(`(${propinaPct}%)`, W));
+            lines.push(sep);
+            lines.push(this._lr('PROPINA SUGERIDA :', `$ ${fmt(propinaMonto || 0)}`, W));
+            lines.push(sep);
+            lines.push(this._lr('TOTAL + SERVICIO:', `$ ${fmt((Number(data.total) || 0) + propinaMonto)}`, W));
         }
 
-        lines.push(sep);
+        lines.push(sep2);
         lines.push('');
         lines.push(this._center('** NO VALIDO COMO FACTURA **', W));
         lines.push(this._center('Documento de verificacion', W));
