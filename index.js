@@ -161,6 +161,28 @@ function connectWebSocket() {
         }
     });
 
+    // ── Escuchar facturas del turno → imprimir listado ──
+    socket.on('cierre:facturas', async (data) => {
+        try {
+            printerManager.log(`📋 Facturas del turno → ${(data.facturas || []).length} facturas`);
+            const text = printerManager.formatFacturasTurno(data);
+            await printerManager.print('caja', text);
+        } catch (err) {
+            printerManager.log(`❌ Error imprimiendo facturas turno: ${err.message}`);
+        }
+    });
+
+    // ── Escuchar ventas por PLU → imprimir reporte ──
+    socket.on('cierre:plu', async (data) => {
+        try {
+            printerManager.log(`📦 Ventas por PLU → ${(data.productos || []).length} productos`);
+            const text = printerManager.formatVentasPLU(data);
+            await printerManager.print('caja', text);
+        } catch (err) {
+            printerManager.log(`❌ Error imprimiendo PLU: ${err.message}`);
+        }
+    });
+
     // ── Escuchar reportes de ventas → imprimir en caja ──
     socket.on('reporte:ventas', async (data) => {
         try {
@@ -169,6 +191,28 @@ function connectWebSocket() {
             await printerManager.print('caja', text);
         } catch (err) {
             printerManager.log(`❌ Error imprimiendo reporte: ${err.message}`);
+        }
+    });
+
+    // ── Escuchar correcciones de factura → imprimir tirilla ──
+    socket.on('factura:correccion', async (data) => {
+        try {
+            printerManager.log(`🔧 Corrección factura ${data.numero_factura} → ${data.motivo}`);
+            const text = printerManager.formatCorreccion(data);
+            await printerManager.print('caja', text);
+        } catch (err) {
+            printerManager.log(`❌ Error imprimiendo corrección: ${err.message}`);
+        }
+    });
+
+    // ── Escuchar notas crédito → imprimir tirilla NC ──
+    socket.on('nota:credito', async (data) => {
+        try {
+            printerManager.log(`📝 Nota Crédito ${data.numero_nota} → Factura ${data.factura_original}`);
+            const text = printerManager.formatNotaCredito(data);
+            await printerManager.print('caja', text);
+        } catch (err) {
+            printerManager.log(`❌ Error imprimiendo NC: ${err.message}`);
         }
     });
 }

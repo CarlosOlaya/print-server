@@ -371,9 +371,10 @@ class PrinterManager {
                 const descMonto = Number(item.descuento_monto) || 0;
                 const totalBruto = precio * cantNum;
                 const totalNeto = totalBruto - descMonto;
+                const esCortesia = Boolean(item.es_cortesia);
 
-                if (descPct >= 100) {
-                    // Cortesía: mostrar precio original tachado y $0
+                if (esCortesia) {
+                    // Cortesía: mostrar precio original y $0
                     const vuni = this._rpad(fmt(precio), 8);
                     lines.push(`${cant}  ${nombre} ${vuni}       $0`);
                     lines.push(`      ** CORTESIA **`);
@@ -466,9 +467,10 @@ class PrinterManager {
                 const descMonto = Number(item.descuento_monto) || 0;
                 const totalBruto = precio * cantNum;
                 const totalNeto = totalBruto - descMonto;
+                const esCortesia = Boolean(item.es_cortesia);
 
-                if (descPct >= 100) {
-                    // Cortesía: mostrar precio original tachado y $0
+                if (esCortesia) {
+                    // Cortesía: mostrar precio original y $0
                     const vuni = this._rpad(fmt(precio), 8);
                     lines.push(`${cant}  ${nombre} ${vuni}       $0`);
                     lines.push(`      ** CORTESIA **`);
@@ -528,6 +530,7 @@ class PrinterManager {
         const lines = [];
         const sep = '='.repeat(48);
         const sep2 = '-'.repeat(48);
+        const W = 48;
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
         lines.push(sep);
@@ -540,51 +543,184 @@ class PrinterManager {
         lines.push(`Cierre:   ${new Date(data.fecha_cierre || Date.now()).toLocaleString('es-CO')}`);
         lines.push(sep2);
 
+        // Ventas por método de pago
         lines.push('');
         lines.push('VENTAS POR METODO DE PAGO:');
         lines.push(sep2);
-        lines.push(`  Efectivo:      $${fmt(data.total_efectivo)}`);
-        lines.push(`  Datafono:      $${fmt(data.total_datafono)}`);
-        lines.push(`  Transferencia: $${fmt(data.total_transferencia)}`);
-        if (data.total_credito > 0) lines.push(`  Credito:       $${fmt(data.total_credito)}`);
+        lines.push(this._lr('Efectivo:', `$${fmt(data.total_efectivo)}`, W));
+        lines.push(this._lr('Datafono:', `$${fmt(data.total_datafono)}`, W));
+        lines.push(this._lr('Transferencia:', `$${fmt(data.total_transferencia)}`, W));
+        if (data.total_credito > 0) lines.push(this._lr('Credito:', `$${fmt(data.total_credito)}`, W));
         lines.push(sep2);
-        lines.push(`  TOTAL VENTAS:  $${fmt(data.total_ventas)}`);
+        lines.push(this._lr('TOTAL VENTAS:', `$${fmt(data.total_ventas)}`, W));
 
+        // Propinas
         lines.push('');
         lines.push('PROPINAS:');
         lines.push(sep2);
-        if (data.propina_efectivo > 0) lines.push(`  Efectivo:      $${fmt(data.propina_efectivo)}`);
-        if (data.propina_datafono > 0) lines.push(`  Datafono:      $${fmt(data.propina_datafono)}`);
-        if (data.propina_transferencia > 0) lines.push(`  Transferencia: $${fmt(data.propina_transferencia)}`);
-        lines.push(`  TOTAL PROPINAS:$${fmt(data.total_propinas)}`);
+        if (data.propina_efectivo > 0) lines.push(this._lr('  Efectivo:', `$${fmt(data.propina_efectivo)}`, W));
+        if (data.propina_datafono > 0) lines.push(this._lr('  Datafono:', `$${fmt(data.propina_datafono)}`, W));
+        if (data.propina_transferencia > 0) lines.push(this._lr('  Transferencia:', `$${fmt(data.propina_transferencia)}`, W));
+        lines.push(this._lr('TOTAL PROPINAS:', `$${fmt(data.total_propinas)}`, W));
 
-        if (data.total_descuentos > 0) {
+        // Servicio e IVA
+        if (data.total_servicio > 0) {
             lines.push('');
-            lines.push(`DESCUENTOS:     -$${fmt(data.total_descuentos)}`);
+            lines.push(this._lr('SERVICIO:', `$${fmt(data.total_servicio)}`, W));
+        }
+        if (data.total_iva > 0) {
+            lines.push(this._lr('IVA:', `$${fmt(data.total_iva)}`, W));
         }
 
+        // Descuentos y cortesías
+        const totalDesc = Number(data.total_descuentos) || 0;
+        const totalCort = Number(data.total_cortesias) || 0;
+        if (totalDesc > 0 || totalCort > 0) {
+            lines.push('');
+            lines.push('DESCUENTOS Y CORTESIAS:');
+            lines.push(sep2);
+            if (data.total_descuentos_mesa > 0) lines.push(this._lr('  Dcto Mesa:', `-$${fmt(data.total_descuentos_mesa)}`, W));
+            if (data.total_descuentos_items > 0) lines.push(this._lr('  Dcto Items:', `-$${fmt(data.total_descuentos_items)}`, W));
+            if (totalCort > 0) lines.push(this._lr('  Cortesias:', `-$${fmt(totalCort)}`, W));
+            lines.push(this._lr('TOTAL DCTOS:', `-$${fmt(totalDesc + totalCort)}`, W));
+        }
+
+        // Anulaciones
+        if (data.num_anulaciones > 0 || data.items_anulados > 0) {
+            lines.push('');
+            lines.push('ANULACIONES:');
+            lines.push(sep2);
+            if (data.num_anulaciones > 0) lines.push(this._lr('  Facturas anuladas:', `${data.num_anulaciones}`, W));
+            if (data.monto_anulaciones > 0) lines.push(this._lr('  Monto anulado:', `$${fmt(data.monto_anulaciones)}`, W));
+            if (data.items_anulados > 0) lines.push(this._lr('  Items anulados:', `${data.items_anulados}`, W));
+        }
+
+        // Factura electrónica
+        if (data.num_facturas_electronicas > 0) {
+            lines.push('');
+            lines.push(this._lr('FACT. ELECTRONICAS:', `${data.num_facturas_electronicas} de ${data.num_facturas}`, W));
+            lines.push(this._lr('  Total FE:', `$${fmt(data.total_facturas_electronicas)}`, W));
+        }
+
+        // Resumen efectivo
         lines.push('');
         lines.push(sep);
         lines.push('RESUMEN EFECTIVO:');
         lines.push(sep2);
-        lines.push(`  Inicial:    $${fmt(data.efectivo_inicial)}`);
-        lines.push(`  + Ventas:   $${fmt(data.total_efectivo)}`);
-        lines.push(`  + Propinas: $${fmt(data.propina_efectivo)}`);
+        lines.push(this._lr('Inicial:', `$${fmt(data.efectivo_inicial)}`, W));
+        lines.push(this._lr('+ Ventas:', `$${fmt(data.total_efectivo)}`, W));
+        lines.push(this._lr('+ Propinas:', `$${fmt(data.propina_efectivo)}`, W));
         lines.push(sep2);
-        lines.push(`  Esperado:   $${fmt(data.efectivo_esperado)}`);
-        lines.push(`  Contado:    $${fmt(data.efectivo_contado)}`);
+        lines.push(this._lr('Esperado:', `$${fmt(data.efectivo_esperado)}`, W));
+        lines.push(this._lr('Contado:', `$${fmt(data.efectivo_contado)}`, W));
         const dif = Number(data.diferencia) || 0;
         const difLabel = dif >= 0 ? `+$${fmt(dif)}` : `-$${fmt(Math.abs(dif))}`;
-        lines.push(`  DIFERENCIA: ${difLabel} ${dif === 0 ? '✓' : dif > 0 ? '(sobrante)' : '(faltante)'}`);
+        lines.push(this._lr('DIFERENCIA:', `${difLabel} ${dif === 0 ? '✓' : dif > 0 ? '(sobrante)' : '(faltante)'}`, W));
 
+        // Footer
         lines.push('');
         lines.push(sep2);
-        lines.push(`Facturas: ${data.num_facturas || 0}`);
-        if (data.num_anulaciones > 0) lines.push(`Anulaciones: ${data.num_anulaciones}`);
+        lines.push(this._lr('Facturas:', `${data.num_facturas || 0}`, W));
         if (data.observaciones) {
             lines.push(sep2);
             lines.push(`Obs: ${data.observaciones}`);
         }
+        lines.push(sep);
+        lines.push(this._footer());
+
+        return lines.join('\n');
+    }
+
+    // ══════════════════════════════════════════════════════
+    // Tirilla 2: Facturas del turno
+    // ══════════════════════════════════════════════════════
+    formatFacturasTurno(data) {
+        const lines = [];
+        const sep = '='.repeat(48);
+        const sep2 = '-'.repeat(48);
+        const W = 48;
+        const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
+
+        lines.push(sep);
+        lines.push('      FACTURAS DEL TURNO');
+        lines.push(sep);
+        lines.push(`Cajero: ${data.cajero || ''}`);
+        lines.push(`Cierre: ${new Date().toLocaleString('es-CO')}`);
+        lines.push(`Total facturas: ${(data.facturas || []).length}`);
+        if (data.num_facturas_electronicas > 0) {
+            lines.push(`Fact. Electronicas: ${data.num_facturas_electronicas}`);
+        }
+        lines.push(sep2);
+
+        // Header
+        lines.push('#FAC   MESA  METODO     TOTAL    HORA');
+        lines.push(sep2);
+
+        for (const f of (data.facturas || [])) {
+            const num = (f.numero_factura || '').padEnd(6, ' ');
+            const mesa = String(f.mesa_numero || '-').padEnd(5, ' ');
+            const metodo = (f.metodo_pago || '').substring(0, 10).padEnd(10, ' ');
+            const total = ('$' + fmt(f.total)).padStart(9, ' ');
+            const hora = (f.hora || '').padStart(5, ' ');
+            const feMarker = f.es_factura_electronica ? ' [FE]' : '';
+            lines.push(`${num} ${mesa} ${metodo} ${total} ${hora}${feMarker}`);
+
+            // Pagos divididos
+            if (f.pagos && f.pagos.length > 0) {
+                for (const p of f.pagos) {
+                    const propLabel = p.propina > 0 ? ` +prop $${fmt(p.propina)}` : '';
+                    lines.push(`       ${p.metodo}: $${fmt(p.monto)}${propLabel}`);
+                }
+            }
+        }
+
+        // Totales
+        lines.push(sep);
+        lines.push(this._lr('Total ventas:', `$${fmt(data.total_ventas)}`, W));
+        lines.push(this._lr('Total propinas:', `$${fmt(data.total_propinas)}`, W));
+        lines.push(this._lr('GRAN TOTAL:', `$${fmt((data.total_ventas || 0) + (data.total_propinas || 0))}`, W));
+        if (data.num_facturas_electronicas > 0) {
+            lines.push(sep2);
+            lines.push(this._lr('Total Fact. Elect.:', `$${fmt(data.total_facturas_electronicas)}`, W));
+        }
+        lines.push(sep);
+        lines.push(this._footer());
+
+        return lines.join('\n');
+    }
+
+    // ══════════════════════════════════════════════════════
+    // Tirilla 3: Ventas por PLU (productos vendidos)
+    // ══════════════════════════════════════════════════════
+    formatVentasPLU(data) {
+        const lines = [];
+        const sep = '='.repeat(48);
+        const sep2 = '-'.repeat(48);
+        const W = 48;
+        const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
+
+        lines.push(sep);
+        lines.push('       VENTAS POR PLU');
+        lines.push(sep);
+        lines.push(`Cajero: ${data.cajero || ''}`);
+        lines.push(`Cierre: ${new Date().toLocaleString('es-CO')}`);
+        lines.push(sep2);
+
+        // Header
+        lines.push('PRODUCTO                  CANT    TOTAL');
+        lines.push(sep2);
+
+        for (const p of (data.productos || [])) {
+            const nombre = (p.nombre || '').substring(0, 24).padEnd(24, ' ');
+            const cant = String(p.cantidad).padStart(4, ' ');
+            const total = ('$' + fmt(p.valor)).padStart(10, ' ');
+            lines.push(`${nombre} ${cant} ${total}`);
+        }
+
+        // Totales
+        lines.push(sep);
+        lines.push(this._lr('Total items:', `${data.total_items || 0}`, W));
+        lines.push(this._lr('Total valor:', `$${fmt(data.total_valor)}`, W));
         lines.push(sep);
         lines.push(this._footer());
 
@@ -694,6 +830,117 @@ class PrinterManager {
         lines.push('');
         lines.push('');
         lines.push('');
+        return lines.join('\n');
+    }
+
+    // ══════════════════════════════════════════
+    // CORRECCIÓN ADMINISTRATIVA — tirilla auditoría
+    // ══════════════════════════════════════════
+    formatCorreccion(data) {
+        const W = 48;
+        const lines = [];
+        const sep = '='.repeat(W);
+        const sep2 = '-'.repeat(W);
+        const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
+        const now = new Date();
+
+        lines.push(sep);
+        lines.push(this._center('*** CORRECCION DE FACTURA ***', W));
+        lines.push(sep);
+        lines.push('');
+        lines.push(this._lr('Factura:', data.numero_factura || 'N/A', W));
+        if (data.mesa_numero) lines.push(this._lr('Mesa:', String(data.mesa_numero), W));
+        if (data.mesero) lines.push(this._lr('Mesero:', data.mesero, W));
+        lines.push(this._lr('Fecha:', now.toLocaleDateString('es-CO'), W));
+        lines.push(this._lr('Hora:', now.toLocaleTimeString('es-CO'), W));
+        if (data.corregido_por) lines.push(this._lr('Corregido por:', data.corregido_por, W));
+        lines.push(sep2);
+        lines.push('');
+        lines.push('CAMBIOS REALIZADOS:');
+        lines.push(sep2);
+
+        const cambios = data.cambios || [];
+        for (const c of cambios) {
+            if (c.campo === 'metodo_pago') {
+                lines.push(this._lr('Metodo anterior:', String(c.anterior).toUpperCase(), W));
+                lines.push(this._lr('Metodo nuevo:', String(c.nuevo).toUpperCase(), W));
+                lines.push('');
+            } else if (c.campo === 'servicio') {
+                lines.push(this._lr('Servicio anterior:', `$${fmt(c.anterior)}`, W));
+                lines.push(this._lr('Servicio nuevo:', `$${fmt(c.nuevo)}`, W));
+                lines.push('');
+            } else if (c.campo === 'total') {
+                lines.push(this._lr('Total anterior:', `$${fmt(c.anterior)}`, W));
+                lines.push(this._lr('Total nuevo:', `$${fmt(c.nuevo)}`, W));
+                lines.push('');
+            }
+        }
+
+        lines.push(sep2);
+        lines.push(`Motivo: ${data.motivo || 'No especificado'}`);
+        lines.push(sep2);
+        lines.push('');
+        lines.push(this._center('DOCUMENTO DE AUDITORIA', W));
+        lines.push(this._center('Conservar para registros', W));
+        lines.push(this._footer());
+
+        return lines.join('\n');
+    }
+
+    // ══════════════════════════════════════════
+    // NOTA CRÉDITO — documento fiscal de anulación
+    // ══════════════════════════════════════════
+    formatNotaCredito(data) {
+        const W = 48;
+        const lines = [];
+        const sep = '='.repeat(W);
+        const sep2 = '-'.repeat(W);
+        const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
+        const now = new Date();
+
+        lines.push(sep);
+        lines.push(this._center('*** NOTA CREDITO ***', W));
+        lines.push(this._center(data.numero_nota || '', W));
+        lines.push(sep);
+        lines.push('');
+        lines.push(this._lr('Tipo:', (data.tipo || 'total').toUpperCase(), W));
+        lines.push(this._lr('Factura anulada:', data.factura_original || '', W));
+        if (data.mesa_numero) lines.push(this._lr('Mesa destino:', String(data.mesa_numero), W));
+        if (data.mesero) lines.push(this._lr('Mesero:', data.mesero, W));
+        lines.push(this._lr('Fecha:', now.toLocaleDateString('es-CO'), W));
+        lines.push(this._lr('Hora:', now.toLocaleTimeString('es-CO'), W));
+        lines.push(sep2);
+
+        // Detalle de lo anulado
+        const det = data.detalle || {};
+        if (det.items_anulados && det.items_anulados.length > 0) {
+            lines.push('');
+            lines.push('ITEMS DE LA FACTURA ORIGINAL:');
+            lines.push(sep2);
+            for (const item of det.items_anulados) {
+                const total = item.cantidad * item.precio_unitario;
+                const nombre = (item.plato_nombre || '').substring(0, 28);
+                lines.push(`${nombre}`);
+                lines.push(this._lr(`  ${item.cantidad} x $${fmt(item.precio_unitario)}`, `$${fmt(total)}`, W));
+            }
+            lines.push(sep2);
+        }
+
+        lines.push('');
+        if (det.subtotal_original) lines.push(this._lr('Subtotal original:', `$${fmt(det.subtotal_original)}`, W));
+        if (det.servicio_original) lines.push(this._lr('Servicio original:', `$${fmt(det.servicio_original)}`, W));
+        lines.push(sep2);
+        lines.push(this._lr('MONTO ANULADO:', `$${fmt(data.monto_anulado)}`, W));
+        lines.push(sep2);
+        lines.push('');
+        lines.push(`Motivo: ${data.motivo || 'No especificado'}`);
+        lines.push(sep2);
+        lines.push('');
+        lines.push(this._center('DOCUMENTO FISCAL', W));
+        lines.push(this._center('Nota Credito - Conservar', W));
+        lines.push(this._center('para registros contables', W));
+        lines.push(this._footer());
+
         return lines.join('\n');
     }
 
