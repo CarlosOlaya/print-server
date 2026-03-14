@@ -554,23 +554,21 @@ class PrinterManager {
         lines.push(sep2);
         lines.push(this._lr('TOTAL VENTAS:', `$${fmt(data.total_ventas)}`, W));
 
-        // Propinas
+        // Servicio (propinas + servicio sugerido)
         lines.push('');
-        lines.push('PROPINAS:');
+        lines.push('SERVICIO:');
         lines.push(sep2);
         if (data.propina_efectivo > 0) lines.push(this._lr('  Efectivo:', `$${fmt(data.propina_efectivo)}`, W));
         if (data.propina_datafono > 0) lines.push(this._lr('  Datafono:', `$${fmt(data.propina_datafono)}`, W));
         if (data.propina_transferencia > 0) lines.push(this._lr('  Transferencia:', `$${fmt(data.propina_transferencia)}`, W));
-        lines.push(this._lr('TOTAL PROPINAS:', `$${fmt(data.total_propinas)}`, W));
+        lines.push(this._lr('TOTAL SERVICIO:', `$${fmt(data.total_propinas)}`, W));
 
-        // Servicio e IVA
-        if (data.total_servicio > 0) {
-            lines.push('');
-            lines.push(this._lr('SERVICIO:', `$${fmt(data.total_servicio)}`, W));
-        }
-        if (data.total_iva > 0) {
-            lines.push(this._lr('IVA:', `$${fmt(data.total_iva)}`, W));
-        }
+        // Total ingreso
+        lines.push('');
+        lines.push(sep);
+        const totalIngreso = (Number(data.total_ventas) || 0) + (Number(data.total_propinas) || 0);
+        lines.push(this._lr('TOTAL INGRESO:', `$${fmt(data.total_ingreso || totalIngreso)}`, W));
+        lines.push(sep);
 
         // Descuentos y cortesías
         const totalDesc = Number(data.total_descuentos) || 0;
@@ -677,8 +675,9 @@ class PrinterManager {
         // Totales
         lines.push(sep);
         lines.push(this._lr('Total ventas:', `$${fmt(data.total_ventas)}`, W));
-        lines.push(this._lr('Total propinas:', `$${fmt(data.total_propinas)}`, W));
-        lines.push(this._lr('GRAN TOTAL:', `$${fmt((data.total_ventas || 0) + (data.total_propinas || 0))}`, W));
+        lines.push(this._lr('Total servicio:', `$${fmt(data.total_propinas)}`, W));
+        const totalIng = (Number(data.total_ventas) || 0) + (Number(data.total_propinas) || 0);
+        lines.push(this._lr('TOTAL INGRESO:', `$${fmt(data.total_ingreso || totalIng)}`, W));
         if (data.num_facturas_electronicas > 0) {
             lines.push(sep2);
             lines.push(this._lr('Total Fact. Elect.:', `$${fmt(data.total_facturas_electronicas)}`, W));
