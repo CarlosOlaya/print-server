@@ -413,11 +413,34 @@ class PrinterManager {
         lines.push(sep2);
 
         // Forma de pago
-        if (factura.metodo_pago) {
-            lines.push(this._center('FORMAS DE PAGO', W));
-            lines.push(sep);
-            const metodo = (factura.metodo_pago || '').charAt(0).toUpperCase() + (factura.metodo_pago || '').slice(1);
-            lines.push(this._lr(metodo, `$${fmt(factura.total)}`, W));
+        const metodoLabels = {
+            efectivo: 'Efectivo', datafono: 'Datafono', tarjeta: 'Tarjeta',
+            transferencia: 'Transferencia', credito: 'Credito', nequi: 'Nequi',
+        };
+        const labelMetodo = (m) => {
+            const key = (m || '').toLowerCase();
+            // Formato compuesto: 'efectivo+datafono'
+            if (key.includes('+')) {
+                return key.split('+').map(k => metodoLabels[k] || k).join(' + ');
+            }
+            return metodoLabels[key] || m || 'Efectivo';
+        };
+
+        lines.push(this._center('FORMAS DE PAGO', W));
+        lines.push(sep);
+        if (factura.pagos && factura.pagos.length > 0) {
+            // Desglose por método con sus montos y propinas individuales
+            for (const p of factura.pagos) {
+                const metodoStr = labelMetodo(p.metodo || p.metodo_pago).padEnd(14, ' ');
+                lines.push(this._lr(metodoStr + ':', `$${fmt(p.monto)}`, W));
+                if (Number(p.propina) > 0) {
+                    lines.push(this._lr('  + Servicio:', `$${fmt(p.propina)}`, W));
+                }
+            }
+        } else if (factura.metodo_pago) {
+            // Pago simple o fallback
+            const metodoStr = labelMetodo(factura.metodo_pago);
+            lines.push(this._lr(metodoStr + ':', `$${fmt(factura.total)}`, W));
         }
         lines.push(sep);
         lines.push('');
