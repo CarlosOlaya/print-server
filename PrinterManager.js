@@ -638,10 +638,19 @@ class PrinterManager {
         const difLabel = dif >= 0 ? `+$${fmt(dif)}` : `-$${fmt(Math.abs(dif))}`;
         lines.push(this._lr('DIFERENCIA:', `${difLabel} ${dif === 0 ? '✓' : dif > 0 ? '(sobrante)' : '(faltante)'}`, W));
 
-        // Footer
+        // Footer: desglose de facturas (consistente con tirilla de facturas)
         lines.push('');
         lines.push(sep2);
-        lines.push(this._lr('Facturas:', `${data.num_facturas || 0}`, W));
+        lines.push(this._lr('Facturas cobradas:', `${data.num_facturas_cerradas || data.num_facturas || 0}`, W));
+        if ((data.num_facturas_anuladas || 0) > 0) {
+            lines.push(this._lr('Facturas anuladas:', `${data.num_facturas_anuladas}`, W));
+        }
+        if ((data.num_notas_credito || 0) > 0) {
+            lines.push(this._lr('Notas credito:', `${data.num_notas_credito}`, W));
+        }
+        if ((data.num_facturas_total || 0) > 0) {
+            lines.push(this._lr('Total consecutivos:', `${data.num_facturas_total}`, W));
+        }
         if (data.observaciones) {
             lines.push(sep2);
             lines.push(`Obs: ${data.observaciones}`);
@@ -667,7 +676,18 @@ class PrinterManager {
         lines.push(sep);
         lines.push(`Cajero: ${data.cajero || ''}`);
         lines.push(`Cierre: ${new Date().toLocaleString('es-CO')}`);
-        lines.push(`Total facturas: ${(data.facturas || []).length}`);
+
+        // Desglose contable claro (sin ambigüedades)
+        const numCerradas = data.num_facturas_cerradas || (data.facturas || []).filter(f => f.tipo === 'cerrada').length;
+        const numAnuladas = data.num_facturas_anuladas || (data.facturas || []).filter(f => f.tipo === 'anulada').length;
+        const numNC = data.num_notas_credito || (data.facturas || []).filter(f => f.tipo === 'nc').length;
+        const numTotal = data.num_facturas_total || (numCerradas + numAnuladas);
+
+        lines.push(`Facturas cobradas:  ${numCerradas}`);
+        if (numAnuladas > 0) lines.push(`Facturas anuladas:  ${numAnuladas}`);
+        if (numNC > 0)       lines.push(`Notas credito:      ${numNC}`);
+        if (numTotal !== numCerradas) lines.push(`Total consecutivos: ${numTotal}`);
+
         if (data.num_facturas_electronicas > 0) {
             lines.push(`Fact. Electronicas: ${data.num_facturas_electronicas}`);
         }
@@ -678,19 +698,51 @@ class PrinterManager {
         lines.push(sep2);
 
         for (const f of (data.facturas || [])) {
+            const tipo = (f.tipo || 'cerrada').toLowerCase();
             const num = (f.numero_factura || '').padEnd(6, ' ');
             const mesa = String(f.mesa_numero || '-').padEnd(5, ' ');
-            const metodo = (f.metodo_pago || '').substring(0, 10).padEnd(10, ' ');
-            const total = ('$' + fmt(f.total)).padStart(9, ' ');
             const hora = (f.hora || '').padStart(5, ' ');
             const feMarker = f.es_factura_electronica ? ' [FE]' : '';
-            lines.push(`${num} ${mesa} ${metodo} ${total} ${hora}${feMarker}`);
 
-            // Pagos divididos
-            if (f.pagos && f.pagos.length > 0) {
-                for (const p of f.pagos) {
-                    const propLabel = p.propina > 0 ? ` +prop $${fmt(p.propina)}` : '';
-                    lines.push(`       ${p.metodo}: $${fmt(p.monto)}${propLabel}`);
+            if (tipo === 'anulada') {
+                // Factura anulada: mostrar claramente [ANULADA] y no el método de pago
+                const total = ('$' + fmt(f.total)).padStart(9, ' ');
+                lines.push(`${num} ${mesa} ANULADA    ${total} ${hora}`);
+                // Indicar la NC que la anuló
+                if (f.nota_credito && f.nota_credito.numero) {
+                    lines.push(`  >> Anulada por ${f.nota_credito.numero}`);
+                    if (f.nota_credito.motivo) {
+                        lines.push(`     Motivo: ${f.nota_credito.motivo}`);
+                    }
+                } else if (f.motivo_anulacion) {
+                    lines.push(`  >> ${f.motivo_anulacion}`);
+                }
+            } else if (tipo === 'nc') {
+                // Nota Crédito: línea diferenciada
+                const total = ('-$' + fmt(f.total)).padStart(9, ' ');
+                lines.push(`[NC]   ${mesa}            ${total} ${hora}`);
+                if (f.nota_credito && f.nota_credito.numero) {
+                    lines.push(`  >> ${f.nota_credito.numero}`);
+                }
+            } else {
+                // Factura cerrada (normal o refactura)
+                const metodo = (f.metodo_pago || '').substring(0, 10).padEnd(10, ' ');
+                const total = ('$' + fmt(f.total)).padStart(9, ' ');
+
+                if (f.factura_origen_nc) {
+                    // Es una refactura creada por NC
+                    lines.push(`${num} ${mesa} ${metodo} ${total} ${hora}${feMarker}`);
+                    lines.push(`  >> Refactura (origen NC)`);
+                } else {
+                    lines.push(`${num} ${mesa} ${metodo} ${total} ${hora}${feMarker}`);
+                }
+
+                // Pagos divididos
+                if (f.pagos && f.pagos.length > 0) {
+                    for (const p of f.pagos) {
+                        const propLabel = p.propina > 0 ? ` +prop $${fmt(p.propina)}` : '';
+                        lines.push(`       ${p.metodo}: $${fmt(p.monto)}${propLabel}`);
+                    }
                 }
             }
         }
