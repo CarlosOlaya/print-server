@@ -327,7 +327,7 @@ class PrinterManager {
     }
 
     // ══════════════════════════════════════════
-    // FACTURA — estilo Doc. Equivalente POS
+    // PEDIDO — tirilla de cobro
     // ══════════════════════════════════════════
     formatFactura(factura) {
         const W = 48;
@@ -347,7 +347,7 @@ class PrinterManager {
         lines.push(sep);
 
         // Documento
-        lines.push(this._center(factura.numero_factura || 'FACTURA DE VENTA', W));
+        lines.push(this._center(factura.numero_factura || 'PEDIDO', W));
         lines.push(sep);
 
         // Info
@@ -409,7 +409,7 @@ class PrinterManager {
             lines.push(this._lr('PROPINA:', `$${fmt(factura.propina)}`, W));
         }
         lines.push(sep2);
-        lines.push(this._lr('TOTAL FACTURA:', `$ ${fmt(factura.total)}`, W));
+        lines.push(this._lr('TOTAL PEDIDO:', `$ ${fmt(factura.total)}`, W));
         lines.push(sep2);
 
         // Forma de pago
@@ -444,6 +444,7 @@ class PrinterManager {
         }
         lines.push(sep);
         lines.push('');
+        lines.push(this._center('** SOLO PARA CONTROL INTERNO **', W));
         lines.push(this._center('Gracias por su visita!', W));
         lines.push(this._footer());
 
@@ -451,7 +452,7 @@ class PrinterManager {
     }
 
     // ══════════════════════════════════════════
-    // PRECUENTA — Verificación de Cuenta
+    // PRECUENTA — Verificación de Pedido
     // ══════════════════════════════════════════
     formatPrecuenta(data) {
         const W = 48;
@@ -465,7 +466,7 @@ class PrinterManager {
 
         // Header
         lines.push(sep);
-        lines.push(this._center('VERIFICACION DE CUENTA', W));
+        lines.push(this._center('VERIFICACION DE PEDIDO', W));
         if (data.tenant_nombre) {
             lines.push(this._center(data.tenant_nombre.toUpperCase(), W));
         }
@@ -541,7 +542,7 @@ class PrinterManager {
 
         lines.push(sep2);
         lines.push('');
-        lines.push(this._center('** NO VALIDO COMO FACTURA **', W));
+        lines.push(this._center('** SOLO PARA CONTROL INTERNO **', W));
         lines.push(this._center('Documento de verificacion', W));
         lines.push(this._footer());
 
@@ -611,17 +612,12 @@ class PrinterManager {
             lines.push('');
             lines.push('ANULACIONES:');
             lines.push(sep2);
-            if (data.num_anulaciones > 0) lines.push(this._lr('  Facturas anuladas:', `${data.num_anulaciones}`, W));
+            if (data.num_anulaciones > 0) lines.push(this._lr('  Pedidos anulados:', `${data.num_anulaciones}`, W));
             if (data.monto_anulaciones > 0) lines.push(this._lr('  Monto anulado:', `$${fmt(data.monto_anulaciones)}`, W));
             if (data.items_anulados > 0) lines.push(this._lr('  Items anulados:', `${data.items_anulados}`, W));
         }
 
-        // Factura electrónica
-        if (data.num_facturas_electronicas > 0) {
-            lines.push('');
-            lines.push(this._lr('FACT. ELECTRONICAS:', `${data.num_facturas_electronicas} de ${data.num_facturas}`, W));
-            lines.push(this._lr('  Total FE:', `$${fmt(data.total_facturas_electronicas)}`, W));
-        }
+
 
         // Resumen efectivo
         lines.push('');
@@ -641,12 +637,12 @@ class PrinterManager {
         // Footer: desglose de facturas (consistente con tirilla de facturas)
         lines.push('');
         lines.push(sep2);
-        lines.push(this._lr('Facturas cobradas:', `${data.num_facturas_cerradas || data.num_facturas || 0}`, W));
+        lines.push(this._lr('Pedidos cobrados:', `${data.num_facturas_cerradas || data.num_facturas || 0}`, W));
         if ((data.num_facturas_anuladas || 0) > 0) {
-            lines.push(this._lr('Facturas anuladas:', `${data.num_facturas_anuladas}`, W));
+            lines.push(this._lr('Pedidos anulados:', `${data.num_facturas_anuladas}`, W));
         }
         if ((data.num_notas_credito || 0) > 0) {
-            lines.push(this._lr('Notas credito:', `${data.num_notas_credito}`, W));
+            lines.push(this._lr('Notas de ajuste:', `${data.num_notas_credito}`, W));
         }
         if ((data.num_facturas_total || 0) > 0) {
             lines.push(this._lr('Total consecutivos:', `${data.num_facturas_total}`, W));
@@ -672,7 +668,7 @@ class PrinterManager {
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
         lines.push(sep);
-        lines.push('      FACTURAS DEL TURNO');
+        lines.push('      PEDIDOS DEL TURNO');
         lines.push(sep);
         lines.push(`Cajero: ${data.cajero || ''}`);
         lines.push(`Cierre: ${new Date().toLocaleString('es-CO')}`);
@@ -680,21 +676,17 @@ class PrinterManager {
         // Desglose contable claro (sin ambigüedades)
         const numCerradas = data.num_facturas_cerradas || (data.facturas || []).filter(f => f.tipo === 'cerrada').length;
         const numAnuladas = data.num_facturas_anuladas || (data.facturas || []).filter(f => f.tipo === 'anulada').length;
-        const numNC = data.num_notas_credito || (data.facturas || []).filter(f => f.tipo === 'nc').length;
+        const numNA = data.num_notas_credito || (data.facturas || []).filter(f => f.tipo === 'nc').length;
         const numTotal = data.num_facturas_total || (numCerradas + numAnuladas);
 
-        lines.push(`Facturas cobradas:  ${numCerradas}`);
-        if (numAnuladas > 0) lines.push(`Facturas anuladas:  ${numAnuladas}`);
-        if (numNC > 0)       lines.push(`Notas credito:      ${numNC}`);
+        lines.push(`Pedidos cobrados:   ${numCerradas}`);
+        if (numAnuladas > 0) lines.push(`Pedidos anulados:   ${numAnuladas}`);
+        if (numNA > 0)       lines.push(`Notas de ajuste:    ${numNA}`);
         if (numTotal !== numCerradas) lines.push(`Total consecutivos: ${numTotal}`);
-
-        if (data.num_facturas_electronicas > 0) {
-            lines.push(`Fact. Electronicas: ${data.num_facturas_electronicas}`);
-        }
         lines.push(sep2);
 
         // Header
-        lines.push('#FAC   MESA  METODO     TOTAL    HORA');
+        lines.push('#PED   MESA  METODO     TOTAL    HORA');
         lines.push(sep2);
 
         for (const f of (data.facturas || [])) {
@@ -702,10 +694,10 @@ class PrinterManager {
             const num = (f.numero_factura || '').padEnd(6, ' ');
             const mesa = String(f.mesa_numero || '-').padEnd(5, ' ');
             const hora = (f.hora || '').padStart(5, ' ');
-            const feMarker = f.es_factura_electronica ? ' [FE]' : '';
+            // Ya no mostramos [FE] porque no somos facturadores electrónicos
 
             if (tipo === 'anulada') {
-                // Factura anulada: mostrar claramente [ANULADA] y no el método de pago
+                // Pedido anulado: mostrar claramente [ANULADO] y no el método de pago
                 const total = ('$' + fmt(f.total)).padStart(9, ' ');
                 lines.push(`${num} ${mesa} ANULADA    ${total} ${hora}`);
                 // Indicar la NC que la anuló
@@ -718,23 +710,23 @@ class PrinterManager {
                     lines.push(`  >> ${f.motivo_anulacion}`);
                 }
             } else if (tipo === 'nc') {
-                // Nota Crédito: línea diferenciada
+                // Nota de Ajuste: línea diferenciada
                 const total = ('-$' + fmt(f.total)).padStart(9, ' ');
-                lines.push(`[NC]   ${mesa}            ${total} ${hora}`);
+                lines.push(`[NA]   ${mesa}            ${total} ${hora}`);
                 if (f.nota_credito && f.nota_credito.numero) {
                     lines.push(`  >> ${f.nota_credito.numero}`);
                 }
             } else {
-                // Factura cerrada (normal o refactura)
+                // Pedido cobrado (normal o refactura)
                 const metodo = (f.metodo_pago || '').substring(0, 10).padEnd(10, ' ');
                 const total = ('$' + fmt(f.total)).padStart(9, ' ');
 
                 if (f.factura_origen_nc) {
                     // Es una refactura creada por NC
-                    lines.push(`${num} ${mesa} ${metodo} ${total} ${hora}${feMarker}`);
-                    lines.push(`  >> Refactura (origen NC)`);
+                    lines.push(`${num} ${mesa} ${metodo} ${total} ${hora}`);
+                    lines.push(`  >> Refactura (origen NA)`);
                 } else {
-                    lines.push(`${num} ${mesa} ${metodo} ${total} ${hora}${feMarker}`);
+                    lines.push(`${num} ${mesa} ${metodo} ${total} ${hora}`);
                 }
 
                 // Pagos divididos
@@ -753,10 +745,7 @@ class PrinterManager {
         lines.push(this._lr('Total servicio:', `$${fmt(data.total_propinas)}`, W));
         const totalIng = (Number(data.total_ventas) || 0) + (Number(data.total_propinas) || 0);
         lines.push(this._lr('TOTAL INGRESO:', `$${fmt(data.total_ingreso || totalIng)}`, W));
-        if (data.num_facturas_electronicas > 0) {
-            lines.push(sep2);
-            lines.push(this._lr('Total Fact. Elect.:', `$${fmt(data.total_facturas_electronicas)}`, W));
-        }
+
         lines.push(sep);
         lines.push(this._footer());
 
@@ -821,7 +810,7 @@ class PrinterManager {
             lines.push('');
             lines.push('RESUMEN:');
             lines.push(sep2);
-            lines.push(`  Facturas:     ${r.total_facturas || 0}`);
+            lines.push(`  Pedidos:      ${r.total_facturas || 0}`);
             lines.push(`  Venta bruta:  $${fmt(r.venta_bruta)}`);
             if (r.total_descuentos > 0) lines.push(`  Descuentos:  -$${fmt(r.total_descuentos)}`);
             lines.push(`  Venta neta:   $${fmt(r.venta_neta)}`);
@@ -893,9 +882,7 @@ class PrinterManager {
         const W = 48;
         const lines = [];
         lines.push('');
-        lines.push(this._center('- - -  Foodly  - - -', W));
-        lines.push(this._center('Carlos Olaya Dev', W));
-        lines.push(this._center('www.foodly.com', W));
+        lines.push(this._center('Sistema de gestion', W));
         // Espacio amplio para que la impresora térmica
         // avance lo suficiente antes de cortar y no
         // pierda el footer. Equivale a ~5 líneas en blanco.
@@ -919,10 +906,10 @@ class PrinterManager {
         const now = new Date();
 
         lines.push(sep);
-        lines.push(this._center('*** CORRECCION DE FACTURA ***', W));
+        lines.push(this._center('*** CORRECCION DE PEDIDO ***', W));
         lines.push(sep);
         lines.push('');
-        lines.push(this._lr('Factura:', data.numero_factura || 'N/A', W));
+        lines.push(this._lr('Pedido:', data.numero_factura || 'N/A', W));
         if (data.mesa_numero) lines.push(this._lr('Mesa:', String(data.mesa_numero), W));
         if (data.mesero) lines.push(this._lr('Mesero:', data.mesero, W));
         lines.push(this._lr('Fecha:', now.toLocaleDateString('es-CO'), W));
@@ -962,7 +949,7 @@ class PrinterManager {
     }
 
     // ══════════════════════════════════════════
-    // NOTA CRÉDITO — documento fiscal de anulación
+    // NOTA DE AJUSTE — documento de anulación
     // ══════════════════════════════════════════
     formatNotaCredito(data) {
         const W = 48;
@@ -973,12 +960,12 @@ class PrinterManager {
         const now = new Date();
 
         lines.push(sep);
-        lines.push(this._center('*** NOTA CREDITO ***', W));
+        lines.push(this._center('*** NOTA DE AJUSTE ***', W));
         lines.push(this._center(data.numero_nota || '', W));
         lines.push(sep);
         lines.push('');
         lines.push(this._lr('Tipo:', (data.tipo || 'total').toUpperCase(), W));
-        lines.push(this._lr('Factura anulada:', data.factura_original || '', W));
+        lines.push(this._lr('Pedido anulado:', data.factura_original || '', W));
         if (data.mesa_numero) lines.push(this._lr('Mesa destino:', String(data.mesa_numero), W));
         if (data.mesero) lines.push(this._lr('Mesero:', data.mesero, W));
         lines.push(this._lr('Fecha:', now.toLocaleDateString('es-CO'), W));
@@ -989,7 +976,7 @@ class PrinterManager {
         const det = data.detalle || {};
         if (det.items_anulados && det.items_anulados.length > 0) {
             lines.push('');
-            lines.push('ITEMS DE LA FACTURA ORIGINAL:');
+            lines.push('ITEMS DEL PEDIDO ORIGINAL:');
             lines.push(sep2);
             for (const item of det.items_anulados) {
                 const total = item.cantidad * item.precio_unitario;
@@ -1010,9 +997,9 @@ class PrinterManager {
         lines.push(`Motivo: ${data.motivo || 'No especificado'}`);
         lines.push(sep2);
         lines.push('');
-        lines.push(this._center('DOCUMENTO FISCAL', W));
-        lines.push(this._center('Nota Credito - Conservar', W));
-        lines.push(this._center('para registros contables', W));
+        lines.push(this._center('DOCUMENTO DE CONTROL', W));
+        lines.push(this._center('Nota de Ajuste - Conservar', W));
+        lines.push(this._center('para registros internos', W));
         lines.push(this._footer());
 
         return lines.join('\n');

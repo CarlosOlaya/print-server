@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🖨️ Foodly Print Server</title>
+    <title>🖨️ Print Server</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <style>
@@ -601,7 +601,7 @@
     <header class="header">
         <div class="header-left">
             <div class="header-logo">🖨️</div>
-            <h1>Foodly Print Server <span>v2.0</span></h1>
+            <h1>Print Server <span>v2.0</span></h1>
         </div>
         <div id="connectionBadge" class="connection-badge pending">
             <div class="dot"></div>
@@ -614,7 +614,7 @@
         <!-- Setup Banner (visible solo si no hay tenant) -->
         <div id="setupBanner" class="setup-banner" style="display:none">
             <h2>👋 ¡Bienvenido! Configura tu restaurante</h2>
-            <p>Pega tu TENANT ID abajo para conectar con tu cuenta de Foodly y empezar a recibir comandas.</p>
+            <p>Pega tu TENANT ID abajo para conectar con tu cuenta y empezar a recibir comandas.</p>
         </div>
 
         <!-- Configuración -->
@@ -628,13 +628,13 @@
                     <div class="config-field" style="flex:2">
                         <label>Tenant ID (ID del restaurante)</label>
                         <input type="text" id="cfgTenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
-                        <div class="config-hint">Lo encuentras en Foodly → F12 → Console →
+                        <div class="config-hint">Lo encuentras en el Dashboard → Empresa → Tenant ID</div>
                             <code>JSON.parse(atob(localStorage.getItem('token').split('.')[1])).tenant_id</code>
                         </div>
                     </div>
                     <div class="config-field">
                         <label>URL de la API</label>
-                        <input type="text" id="cfgApiUrl" placeholder="https://api-foodly.onrender.com">
+                        <input type="text" id="cfgApiUrl" placeholder="https://tu-api.onrender.com">
                     </div>
                     <div style="display:flex;gap:8px;padding-bottom:22px">
                         <button class="btn btn-save" onclick="saveMainConfig()">

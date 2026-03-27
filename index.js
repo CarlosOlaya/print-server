@@ -128,14 +128,14 @@ function connectWebSocket() {
         }
     });
 
-    // ── Escuchar facturas cerradas → imprimir ticket ──
+    // ── Escuchar pedidos cerrados → imprimir ticket ──
     socket.on('factura:cerrada', async (data) => {
         try {
-            printerManager.log(`🧾 Factura ${data.numero_factura} cerrada → Mesa ${data.mesa_numero}`);
+            printerManager.log(`🧾 Pedido ${data.numero_factura} cerrado → Mesa ${data.mesa_numero}`);
             const text = printerManager.formatFactura(data);
             await printerManager.print('caja', text);
         } catch (err) {
-            printerManager.log(`❌ Error imprimiendo factura: ${err.message}`);
+            printerManager.log(`❌ Error imprimiendo pedido: ${err.message}`);
         }
     });
 
@@ -161,14 +161,14 @@ function connectWebSocket() {
         }
     });
 
-    // ── Escuchar facturas del turno → imprimir listado ──
+    // ── Escuchar pedidos del turno → imprimir listado ──
     socket.on('cierre:facturas', async (data) => {
         try {
-            printerManager.log(`📋 Facturas del turno → ${(data.facturas || []).length} facturas`);
+            printerManager.log(`📋 Pedidos del turno → ${(data.facturas || []).length} pedidos`);
             const text = printerManager.formatFacturasTurno(data);
             await printerManager.print('caja', text);
         } catch (err) {
-            printerManager.log(`❌ Error imprimiendo facturas turno: ${err.message}`);
+            printerManager.log(`❌ Error imprimiendo pedidos turno: ${err.message}`);
         }
     });
 
@@ -194,10 +194,10 @@ function connectWebSocket() {
         }
     });
 
-    // ── Escuchar correcciones de factura → imprimir tirilla ──
+    // ── Escuchar correcciones de pedido → imprimir tirilla ──
     socket.on('factura:correccion', async (data) => {
         try {
-            printerManager.log(`🔧 Corrección factura ${data.numero_factura} → ${data.motivo}`);
+            printerManager.log(`🔧 Corrección pedido ${data.numero_factura} → ${data.motivo}`);
             const text = printerManager.formatCorreccion(data);
             await printerManager.print('caja', text);
         } catch (err) {
@@ -205,14 +205,14 @@ function connectWebSocket() {
         }
     });
 
-    // ── Escuchar notas crédito → imprimir tirilla NC ──
+    // ── Escuchar notas de ajuste → imprimir tirilla ──
     socket.on('nota:credito', async (data) => {
         try {
-            printerManager.log(`📝 Nota Crédito ${data.numero_nota} → Factura ${data.factura_original}`);
+            printerManager.log(`📝 Nota de Ajuste ${data.numero_nota} → Pedido ${data.factura_original}`);
             const text = printerManager.formatNotaCredito(data);
             await printerManager.print('caja', text);
         } catch (err) {
-            printerManager.log(`❌ Error imprimiendo NC: ${err.message}`);
+            printerManager.log(`❌ Error imprimiendo Nota de Ajuste: ${err.message}`);
         }
     });
 }
@@ -336,7 +336,7 @@ app.put('/config/printer/:area', (req, res) => {
 app.post('/test-print/:area', async (req, res) => {
     const { area } = req.params;
     const testText = [
-        '', '    *** PRUEBA DE IMPRESION ***',
+        '    *** PRUEBA DE IMPRESION ***',
         '-'.repeat(48),
         `  Area: ${area.toUpperCase()}`,
         `  Fecha: ${new Date().toLocaleString('es-CO')}`,
@@ -344,9 +344,7 @@ app.post('/test-print/:area', async (req, res) => {
         '  Si ves esto, la impresora',
         '  esta correctamente configurada!',
         '',
-        '    - - -  Foodly  - - -',
-        ' Carlos Olaya Dev',
-        '     www.foodly.com',
+        '     Sistema de gestion',
         '', '', '', '', '', '',
     ].join('\n');
 
@@ -354,7 +352,7 @@ app.post('/test-print/:area', async (req, res) => {
     res.json({ ok: success, area });
 });
 
-// Imprimir factura manualmente
+// Imprimir pedido manualmente
 app.post('/print/factura', async (req, res) => {
     try {
         const text = printerManager.formatFactura(req.body);
@@ -437,7 +435,7 @@ app.get('/scan-network', async (req, res) => {
 app.listen(PORT, () => {
     console.log('');
     console.log('╔═══════════════════════════════════════════════╗');
-    console.log('║   🖨️  FOODLY PRINT SERVER v2.0                ║');
+    console.log('║   🖨️  PRINT SERVER v2.0                       ║');
     console.log('╠═══════════════════════════════════════════════╣');
     console.log(`║  Dashboard:  http://localhost:${PORT}              ║`);
     console.log('║  Toda la configuración se hace desde el       ║');
