@@ -414,8 +414,10 @@ class PrinterManager {
 
         // Forma de pago
         const metodoLabels = {
-            efectivo: 'Efectivo', datafono: 'Datafono', tarjeta: 'Tarjeta',
-            transferencia: 'Transferencia', credito: 'Credito', nequi: 'Nequi',
+            efectivo: 'Efectivo', tarjeta: 'Tarjeta', datafono: 'Tarjeta',
+            transferencia: 'Transferencia', nequi: 'Nequi', daviplata: 'Daviplata',
+            bold: 'Bold', rappi_pay: 'Rappi Pay', pse: 'PSE',
+            bonos: 'Bonos', credito: 'Credito', mixto: 'Mixto',
         };
         const labelMetodo = (m) => {
             const key = (m || '').toLowerCase();
