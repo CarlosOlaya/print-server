@@ -354,7 +354,6 @@ class PrinterManager {
         lines.push(`Fecha: ${fecha}        Hora: ${hora}`);
         lines.push(`Mesa: ${factura.mesa_numero || ''}`);
         lines.push(`Mesero: ${factura.mesero || ''}`);
-        lines.push(`Cliente: ${factura.cliente || 'Consumidor final'}`);
         lines.push(sep);
 
         // Tabla items
