@@ -206,7 +206,7 @@ class PrinterManager {
     }
 
     // ══════════════════════════════════════════
-    // COMANDA — formato POS profesional con ESC/POS
+    // COMANDA — mismo estilo limpio que factura
     // ══════════════════════════════════════════
     formatComanda(payload) {
         if (payload.tipo_comanda === 'anulacion') {
@@ -214,146 +214,119 @@ class PrinterManager {
         }
 
         const ESC = '\x1B';
-        const GS = '\x1D';
-        const NORMAL = ESC + '\x21\x00';       // Texto normal
-        const BOLD = ESC + '\x45\x01';          // Negrita ON
-        const BOLD_OFF = ESC + '\x45\x00';      // Negrita OFF
-        const DH = ESC + '\x21\x10';            // Doble alto
-        const DW = ESC + '\x21\x20';            // Doble ancho
-        const DHW = ESC + '\x21\x30';           // Doble alto + ancho
-        const CENTER = ESC + '\x61\x01';        // Centrar
-        const LEFT = ESC + '\x61\x00';          // Alinear izquierda
+        const BOLD = ESC + '\x45\x01';
+        const BOLD_OFF = ESC + '\x45\x00';
 
-        const W = 48;       // Ancho normal
-        const WD = 24;      // Ancho en doble-ancho (W/2)
+        const W = 48;
+        const lines = [];
         const sep = '-'.repeat(W);
         const sep2 = '='.repeat(W);
         const now = new Date();
         const fecha = now.toLocaleDateString('es-CO');
         const hora = payload.hora || now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-        const parts = [];
+        // Header
+        lines.push(this._center(`COMANDA #${payload.comanda} | ${(payload.area || '').toUpperCase()}`, W));
+        lines.push(sep2);
 
-        // ── Header grande centrado ──
-        parts.push(CENTER + DHW);
-        parts.push(`COMANDA #${payload.comanda}`);
-        parts.push((payload.area || 'COCINA').toUpperCase());
-        parts.push(NORMAL + CENTER);
-        parts.push(sep2);
+        // Info mesa
+        lines.push(`Mesa: ${payload.mesa}  |  ${payload.mesero || ''}`);
+        if (payload.comensales) lines.push(`Personas: ${payload.comensales}`);
+        lines.push(`Fecha: ${fecha}   Hora: ${hora}`);
+        lines.push(sep);
 
-        // ── Info mesa (normal, izquierda) ──
-        parts.push(LEFT + NORMAL);
-        parts.push(`Mesa: ${payload.mesa}  |  ${payload.mesero || ''}`);
-        if (payload.comensales) parts.push(`Personas: ${payload.comensales}`);
-        parts.push(`${fecha}   ${hora}`);
-        parts.push(sep);
+        // Encabezado tabla (cantidad primero, como en factura)
+        lines.push('CANT  PRODUCTO');
+        lines.push(sep);
 
-        // ── Items (doble alto, cantidad primero) ──
-        (payload.items || []).forEach((item, idx) => {
+        // Items
+        (payload.items || []).forEach(item => {
             const nombre = (item.nombre || item.producto || '').toUpperCase();
-            const cant = Number(item.cantidad) || 1;
-            // Formato: "2 NOMBRE_PRODUCTO" en doble alto
-            const prefix = `${cant}  `;
-            const maxNombre = W - prefix.length;
-            const nombreTrunc = nombre.length > maxNombre ? nombre.substring(0, maxNombre - 1) + '.' : nombre;
+            const cant = String(item.cantidad || 1).padStart(3, ' ');
+            // Truncar nombre a una línea (máx 42 chars para dejar espacio a la cantidad)
+            const nombreTrunc = nombre.substring(0, 42);
 
-            parts.push(DH + BOLD + `${prefix}${nombreTrunc}` + BOLD_OFF);
+            // Nombre + cantidad en negrita
+            lines.push(BOLD + `${cant}  ${nombreTrunc}` + BOLD_OFF);
 
-            // Comentario en tamaño normal, indentado
+            // Comentario en texto normal, indentado
             if (item.comentario) {
-                parts.push(NORMAL + `   > ${item.comentario}`);
+                lines.push(`      > ${item.comentario}`);
             }
 
-            // Línea en blanco entre items (excepto el último)
-            parts.push(NORMAL + '');
+            // Línea en blanco entre items para respiración
+            lines.push('');
         });
 
-        // ── Footer ──
-        parts.push(NORMAL + sep2);
-        parts.push('');
-        parts.push('');
-        parts.push('');
+        lines.push(sep2);
+        lines.push('');
+        lines.push('');
+        lines.push('');
 
-        return parts.join('\n');
+        return lines.join('\n');
     }
 
     // ══════════════════════════════════════════
-    // ANULACIÓN — formato diferenciado POS
+    // ANULACIÓN — mismo estilo limpio, diferenciado
     // ══════════════════════════════════════════
     formatComandaAnulacion(payload) {
         const ESC = '\x1B';
-        const GS = '\x1D';
-        const NORMAL = ESC + '\x21\x00';
         const BOLD = ESC + '\x45\x01';
         const BOLD_OFF = ESC + '\x45\x00';
-        const DH = ESC + '\x21\x10';
-        const DHW = ESC + '\x21\x30';
-        const CENTER = ESC + '\x61\x01';
-        const LEFT = ESC + '\x61\x00';
-        const INVERT_ON = GS + '\x42\x01';     // Texto invertido (blanco sobre negro)
-        const INVERT_OFF = GS + '\x42\x00';
 
         const W = 48;
+        const lines = [];
         const sep = '-'.repeat(W);
         const sep2 = '='.repeat(W);
-        const sepX = 'X '.repeat(24);
+        const sepX = 'X'.repeat(W);
         const now = new Date();
         const fecha = now.toLocaleDateString('es-CO');
         const hora = payload.hora || now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-        const parts = [];
+        // Header ANULACIÓN
+        lines.push(sep2);
+        lines.push(BOLD + this._center('*** ANULACION ***', W) + BOLD_OFF);
+        lines.push(this._center(`COMANDA #${payload.comanda} | ${(payload.area || '').toUpperCase()}`, W));
+        lines.push(sep2);
 
-        // ── Header ANULACION (grande, invertido) ──
-        parts.push(CENTER + DHW + BOLD);
-        parts.push(INVERT_ON + ' ANULACION ' + INVERT_OFF);
-        parts.push(`#${payload.comanda} | ${(payload.area || '').toUpperCase()}`);
-        parts.push(NORMAL + CENTER);
-        parts.push(sep2);
+        // Info mesa
+        lines.push(`Mesa: ${payload.mesa}  |  ${payload.mesero || ''}`);
+        lines.push(`Fecha: ${fecha}   Hora: ${hora}`);
+        lines.push(sep);
 
-        // ── Info mesa ──
-        parts.push(LEFT + NORMAL);
-        parts.push(`Mesa: ${payload.mesa}  |  ${payload.mesero || ''}`);
-        parts.push(`${fecha}   ${hora}`);
-        parts.push(sep);
-
-        // ── Motivo ──
+        // Motivo
         if (payload.motivo) {
-            parts.push(BOLD + `MOTIVO: ${payload.motivo.toUpperCase()}` + BOLD_OFF);
-            parts.push(sep);
+            lines.push(BOLD + `MOTIVO: ${payload.motivo.toUpperCase()}` + BOLD_OFF);
+            lines.push(sep);
         }
 
-        // ── Items a anular (doble alto) ──
-        parts.push(CENTER + DH + BOLD);
-        parts.push('** NO PREPARAR **');
-        parts.push(LEFT + NORMAL + sep);
+        // Encabezado
+        lines.push(BOLD + this._center('** NO PREPARAR **', W) + BOLD_OFF);
+        lines.push(sep);
 
+        // Items
         (payload.items || []).forEach(item => {
             const nombre = (item.nombre || item.producto || '').toUpperCase();
-            const cant = Math.abs(Number(item.cantidad) || 1);
-            const prefix = `${cant}x `;
-            const maxNombre = W - prefix.length;
-            const nombreTrunc = nombre.length > maxNombre ? nombre.substring(0, maxNombre - 1) + '.' : nombre;
+            const cant = String(Math.abs(Number(item.cantidad) || 1)).padStart(3, ' ');
+            const nombreTrunc = nombre.substring(0, 42);
 
-            parts.push(DH + BOLD + `${prefix}${nombreTrunc}` + BOLD_OFF);
+            lines.push(BOLD + `${cant}  ${nombreTrunc}` + BOLD_OFF);
 
             if (item.comentario) {
-                parts.push(NORMAL + `   > ${item.comentario}`);
+                lines.push(`      > ${item.comentario}`);
             }
 
-            parts.push(NORMAL + '');
+            lines.push('');
         });
 
-        // ── Footer prominente ──
-        parts.push(NORMAL + sepX);
-        parts.push(CENTER + DHW + BOLD + INVERT_ON);
-        parts.push(' ANULADO ');
-        parts.push(INVERT_OFF + BOLD_OFF + NORMAL + LEFT);
-        parts.push(sepX);
-        parts.push('');
-        parts.push('');
-        parts.push('');
+        lines.push(sepX);
+        lines.push(BOLD + this._center('** ANULADO **', W) + BOLD_OFF);
+        lines.push(sepX);
+        lines.push('');
+        lines.push('');
+        lines.push('');
 
-        return parts.join('\n');
+        return lines.join('\n');
     }
 
     // ══════════════════════════════════════════
