@@ -205,6 +205,24 @@ class PrinterManager {
         });
     }
 
+    // ── Helper: quitar acentos para impresora térmica ──
+    _sanitize(text) {
+        return (text || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')  // quita diacríticos (á→a, ó→o, ú→u, etc.)
+            .replace(/[^\x20-\x7E\n]/g, '');  // solo caracteres imprimibles ASCII
+    }
+
+    // ── Helper: hora simple sin caracteres unicode del locale ──
+    _horaSimple() {
+        const now = new Date();
+        let h = now.getHours();
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12 || 12;
+        return `${h}:${m} ${ampm}`;
+    }
+
     // ══════════════════════════════════════════
     // COMANDA — mismo estilo limpio que factura
     // ══════════════════════════════════════════
@@ -223,27 +241,26 @@ class PrinterManager {
         const sep2 = '='.repeat(W);
         const now = new Date();
         const fecha = now.toLocaleDateString('es-CO');
-        const hora = payload.hora || now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+        const hora = payload.hora ? this._sanitize(String(payload.hora)) : this._horaSimple();
 
         // Header
-        lines.push(this._center(`COMANDA #${payload.comanda} | ${(payload.area || '').toUpperCase()}`, W));
+        lines.push(this._center(`COMANDA #${payload.comanda} | ${this._sanitize((payload.area || '').toUpperCase())}`, W));
         lines.push(sep2);
 
         // Info mesa
-        lines.push(`Mesa: ${payload.mesa}  |  ${payload.mesero || ''}`);
+        lines.push(`Mesa: ${payload.mesa}  |  ${this._sanitize(payload.mesero || '')}`);
         if (payload.comensales) lines.push(`Personas: ${payload.comensales}`);
         lines.push(`Fecha: ${fecha}   Hora: ${hora}`);
         lines.push(sep);
 
-        // Encabezado tabla (cantidad primero, como en factura)
+        // Encabezado tabla
         lines.push('CANT  PRODUCTO');
         lines.push(sep);
 
         // Items
         (payload.items || []).forEach(item => {
-            const nombre = (item.nombre || item.producto || '').toUpperCase();
+            const nombre = this._sanitize((item.nombre || item.producto || '').toUpperCase());
             const cant = String(item.cantidad || 1).padStart(3, ' ');
-            // Truncar nombre a una línea (máx 42 chars para dejar espacio a la cantidad)
             const nombreTrunc = nombre.substring(0, 42);
 
             // Nombre + cantidad en negrita
@@ -251,10 +268,10 @@ class PrinterManager {
 
             // Comentario en texto normal, indentado
             if (item.comentario) {
-                lines.push(`      > ${item.comentario}`);
+                lines.push(`      > ${this._sanitize(item.comentario)}`);
             }
 
-            // Línea en blanco entre items para respiración
+            // Línea en blanco entre items
             lines.push('');
         });
 
@@ -281,22 +298,22 @@ class PrinterManager {
         const sepX = 'X'.repeat(W);
         const now = new Date();
         const fecha = now.toLocaleDateString('es-CO');
-        const hora = payload.hora || now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+        const hora = payload.hora ? this._sanitize(String(payload.hora)) : this._horaSimple();
 
         // Header ANULACIÓN
         lines.push(sep2);
         lines.push(BOLD + this._center('*** ANULACION ***', W) + BOLD_OFF);
-        lines.push(this._center(`COMANDA #${payload.comanda} | ${(payload.area || '').toUpperCase()}`, W));
+        lines.push(this._center(`COMANDA #${payload.comanda} | ${this._sanitize((payload.area || '').toUpperCase())}`, W));
         lines.push(sep2);
 
         // Info mesa
-        lines.push(`Mesa: ${payload.mesa}  |  ${payload.mesero || ''}`);
+        lines.push(`Mesa: ${payload.mesa}  |  ${this._sanitize(payload.mesero || '')}`);
         lines.push(`Fecha: ${fecha}   Hora: ${hora}`);
         lines.push(sep);
 
         // Motivo
         if (payload.motivo) {
-            lines.push(BOLD + `MOTIVO: ${payload.motivo.toUpperCase()}` + BOLD_OFF);
+            lines.push(BOLD + `MOTIVO: ${this._sanitize(payload.motivo.toUpperCase())}` + BOLD_OFF);
             lines.push(sep);
         }
 
@@ -306,14 +323,14 @@ class PrinterManager {
 
         // Items
         (payload.items || []).forEach(item => {
-            const nombre = (item.nombre || item.producto || '').toUpperCase();
+            const nombre = this._sanitize((item.nombre || item.producto || '').toUpperCase());
             const cant = String(Math.abs(Number(item.cantidad) || 1)).padStart(3, ' ');
             const nombreTrunc = nombre.substring(0, 42);
 
             lines.push(BOLD + `${cant}  ${nombreTrunc}` + BOLD_OFF);
 
             if (item.comentario) {
-                lines.push(`      > ${item.comentario}`);
+                lines.push(`      > ${this._sanitize(item.comentario)}`);
             }
 
             lines.push('');
