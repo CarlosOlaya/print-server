@@ -565,94 +565,110 @@ class PrinterManager {
         return lines.join('\n');
     }
 
-    // Formatear cierre de caja
+    // ══════════════════════════════════════════
+    // CIERRE DE CAJA — Resumen financiero del turno
+    // ══════════════════════════════════════════
     formatCierreCaja(data) {
-        const lines = [];
-        const sep = '='.repeat(48);
-        const sep2 = '-'.repeat(48);
+        const ESC = '\x1B';
+        const BOLD = ESC + '\x45\x01';
+        const BOLD_OFF = ESC + '\x45\x00';
+
         const W = 48;
+        const lines = [];
+        const sep = '-'.repeat(W);
+        const sep2 = '='.repeat(W);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
-        lines.push(sep);
-        lines.push('         CIERRE DE CAJA');
-        lines.push(sep);
-        lines.push(`Cajero: ${data.cajero || ''}`);
-        if (data.fecha_apertura) {
-            lines.push(`Apertura: ${new Date(data.fecha_apertura).toLocaleString('es-CO')}`);
+        // ── Header ──
+        if (data.tenant_nombre) {
+            lines.push(this._center(this._sanitize(data.tenant_nombre.toUpperCase()), W));
         }
-        lines.push(`Cierre:   ${new Date(data.fecha_cierre || Date.now()).toLocaleString('es-CO')}`);
+        lines.push(sep2);
+        lines.push(BOLD + this._center('CIERRE DE CAJA', W) + BOLD_OFF);
         lines.push(sep2);
 
-        // Ventas por método de pago
-        lines.push('');
-        lines.push('VENTAS POR METODO DE PAGO:');
-        lines.push(sep2);
-        lines.push(this._lr('Efectivo:', `$${fmt(data.total_efectivo)}`, W));
-        lines.push(this._lr('Datafono:', `$${fmt(data.total_datafono)}`, W));
-        lines.push(this._lr('Transferencia:', `$${fmt(data.total_transferencia)}`, W));
-        if (data.total_credito > 0) lines.push(this._lr('Credito:', `$${fmt(data.total_credito)}`, W));
-        lines.push(sep2);
-        lines.push(this._lr('TOTAL VENTAS:', `$${fmt(data.total_ventas)}`, W));
+        // ── Info del turno ──
+        lines.push(this._lr('Cajero:', this._sanitize(data.cajero || ''), W));
+        if (data.fecha_apertura) {
+            lines.push(this._lr('Apertura:', this._sanitize(new Date(data.fecha_apertura).toLocaleString('es-CO')), W));
+        }
+        lines.push(this._lr('Cierre:', this._sanitize(new Date(data.fecha_cierre || Date.now()).toLocaleString('es-CO')), W));
+        lines.push(sep);
 
-        // Servicio (propinas + servicio sugerido)
+        // ── Ventas por metodo de pago ──
+        lines.push(BOLD + 'VENTAS POR METODO DE PAGO' + BOLD_OFF);
+        lines.push(sep);
+        lines.push(this._lr('  Efectivo:', `$${fmt(data.total_efectivo)}`, W));
+        lines.push(this._lr('  Datafono:', `$${fmt(data.total_datafono)}`, W));
+        lines.push(this._lr('  Transferencia:', `$${fmt(data.total_transferencia)}`, W));
+        if (data.total_credito > 0) {
+            lines.push(this._lr('  Credito:', `$${fmt(data.total_credito)}`, W));
+        }
+        lines.push(sep);
+        lines.push(BOLD + this._lr('TOTAL VENTAS:', `$${fmt(data.total_ventas)}`, W) + BOLD_OFF);
         lines.push('');
-        lines.push('SERVICIO:');
-        lines.push(sep2);
+
+        // ── Servicio ──
+        lines.push(BOLD + 'SERVICIO' + BOLD_OFF);
+        lines.push(sep);
         if (data.propina_efectivo > 0) lines.push(this._lr('  Efectivo:', `$${fmt(data.propina_efectivo)}`, W));
         if (data.propina_datafono > 0) lines.push(this._lr('  Datafono:', `$${fmt(data.propina_datafono)}`, W));
         if (data.propina_transferencia > 0) lines.push(this._lr('  Transferencia:', `$${fmt(data.propina_transferencia)}`, W));
-        lines.push(this._lr('TOTAL SERVICIO:', `$${fmt(data.total_propinas)}`, W));
-
-        // Total ingreso
+        lines.push(sep);
+        lines.push(BOLD + this._lr('TOTAL SERVICIO:', `$${fmt(data.total_propinas)}`, W) + BOLD_OFF);
         lines.push('');
-        lines.push(sep);
-        const totalIngreso = (Number(data.total_ventas) || 0) + (Number(data.total_propinas) || 0);
-        lines.push(this._lr('TOTAL INGRESO:', `$${fmt(data.total_ingreso || totalIngreso)}`, W));
-        lines.push(sep);
 
-        // Descuentos y cortesías
+        // ── Total ingreso ──
+        const totalIngreso = (Number(data.total_ventas) || 0) + (Number(data.total_propinas) || 0);
+        lines.push(sep2);
+        lines.push(BOLD + this._lr('TOTAL INGRESO:', `$${fmt(data.total_ingreso || totalIngreso)}`, W) + BOLD_OFF);
+        lines.push(sep2);
+        lines.push('');
+
+        // ── Descuentos y cortesias ──
         const totalDesc = Number(data.total_descuentos) || 0;
         const totalCort = Number(data.total_cortesias) || 0;
         if (totalDesc > 0 || totalCort > 0) {
-            lines.push('');
-            lines.push('DESCUENTOS Y CORTESIAS:');
-            lines.push(sep2);
+            lines.push(BOLD + 'DESCUENTOS Y CORTESIAS' + BOLD_OFF);
+            lines.push(sep);
             if (data.total_descuentos_mesa > 0) lines.push(this._lr('  Dcto Mesa:', `-$${fmt(data.total_descuentos_mesa)}`, W));
             if (data.total_descuentos_items > 0) lines.push(this._lr('  Dcto Items:', `-$${fmt(data.total_descuentos_items)}`, W));
             if (totalCort > 0) lines.push(this._lr('  Cortesias:', `-$${fmt(totalCort)}`, W));
-            lines.push(this._lr('TOTAL DCTOS:', `-$${fmt(totalDesc + totalCort)}`, W));
+            lines.push(sep);
+            lines.push(BOLD + this._lr('TOTAL DCTOS:', `-$${fmt(totalDesc + totalCort)}`, W) + BOLD_OFF);
+            lines.push('');
         }
 
-        // Anulaciones
+        // ── Anulaciones ──
         if (data.num_anulaciones > 0 || data.items_anulados > 0) {
-            lines.push('');
-            lines.push('ANULACIONES:');
-            lines.push(sep2);
+            lines.push(BOLD + 'ANULACIONES' + BOLD_OFF);
+            lines.push(sep);
             if (data.num_anulaciones > 0) lines.push(this._lr('  Pedidos anulados:', `${data.num_anulaciones}`, W));
             if (data.monto_anulaciones > 0) lines.push(this._lr('  Monto anulado:', `$${fmt(data.monto_anulaciones)}`, W));
             if (data.items_anulados > 0) lines.push(this._lr('  Items anulados:', `${data.items_anulados}`, W));
+            lines.push('');
         }
 
-
-
-        // Resumen efectivo
-        lines.push('');
-        lines.push(sep);
-        lines.push('RESUMEN EFECTIVO:');
+        // ── Resumen efectivo ──
         lines.push(sep2);
+        lines.push(BOLD + 'RESUMEN EFECTIVO' + BOLD_OFF);
+        lines.push(sep);
         lines.push(this._lr('Inicial:', `$${fmt(data.efectivo_inicial)}`, W));
         lines.push(this._lr('+ Ventas:', `$${fmt(data.total_efectivo)}`, W));
         lines.push(this._lr('+ Propinas:', `$${fmt(data.propina_efectivo)}`, W));
-        lines.push(sep2);
-        lines.push(this._lr('Esperado:', `$${fmt(data.efectivo_esperado)}`, W));
+        lines.push(sep);
+        lines.push(BOLD + this._lr('Esperado:', `$${fmt(data.efectivo_esperado)}`, W) + BOLD_OFF);
         lines.push(this._lr('Contado:', `$${fmt(data.efectivo_contado)}`, W));
         const dif = Number(data.diferencia) || 0;
         const difLabel = dif >= 0 ? `+$${fmt(dif)}` : `-$${fmt(Math.abs(dif))}`;
-        lines.push(this._lr('DIFERENCIA:', `${difLabel} ${dif === 0 ? '✓' : dif > 0 ? '(sobrante)' : '(faltante)'}`, W));
-
-        // Footer: desglose de facturas (consistente con tirilla de facturas)
-        lines.push('');
+        const difStatus = dif === 0 ? 'OK' : dif > 0 ? '(sobrante)' : '(faltante)';
+        lines.push(BOLD + this._lr('DIFERENCIA:', `${difLabel} ${difStatus}`, W) + BOLD_OFF);
         lines.push(sep2);
+        lines.push('');
+
+        // ── Resumen de pedidos ──
+        lines.push(BOLD + 'RESUMEN DE PEDIDOS' + BOLD_OFF);
+        lines.push(sep);
         lines.push(this._lr('Pedidos cobrados:', `${data.num_facturas_cerradas || data.num_facturas || 0}`, W));
         if ((data.num_facturas_anuladas || 0) > 0) {
             lines.push(this._lr('Pedidos anulados:', `${data.num_facturas_anuladas}`, W));
@@ -664,213 +680,245 @@ class PrinterManager {
             lines.push(this._lr('Total consecutivos:', `${data.num_facturas_total}`, W));
         }
         if (data.observaciones) {
-            lines.push(sep2);
-            lines.push(`Obs: ${data.observaciones}`);
+            lines.push(sep);
+            lines.push(`Obs: ${this._sanitize(data.observaciones)}`);
         }
-        lines.push(sep);
+        lines.push(sep2);
+        lines.push('');
+        lines.push(this._center('** SOLO PARA CONTROL INTERNO **', W));
         lines.push(this._footer());
 
         return lines.join('\n');
     }
 
     // ══════════════════════════════════════════════════════
-    // Tirilla 2: Facturas del turno
+    // PEDIDOS DEL TURNO — Listado detallado de facturas
     // ══════════════════════════════════════════════════════
     formatFacturasTurno(data) {
-        const lines = [];
-        const sep = '='.repeat(48);
-        const sep2 = '-'.repeat(48);
+        const ESC = '\x1B';
+        const BOLD = ESC + '\x45\x01';
+        const BOLD_OFF = ESC + '\x45\x00';
+
         const W = 48;
+        const lines = [];
+        const sep = '-'.repeat(W);
+        const sep2 = '='.repeat(W);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
-        lines.push(sep);
-        lines.push('      PEDIDOS DEL TURNO');
-        lines.push(sep);
-        lines.push(`Cajero: ${data.cajero || ''}`);
-        lines.push(`Cierre: ${new Date().toLocaleString('es-CO')}`);
+        // ── Header ──
+        if (data.tenant_nombre) {
+            lines.push(this._center(this._sanitize(data.tenant_nombre.toUpperCase()), W));
+        }
+        lines.push(sep2);
+        lines.push(BOLD + this._center('PEDIDOS DEL TURNO', W) + BOLD_OFF);
+        lines.push(sep2);
 
-        // Desglose contable claro (sin ambigüedades)
+        // ── Info del turno ──
+        lines.push(this._lr('Cajero:', this._sanitize(data.cajero || ''), W));
+        lines.push(this._lr('Cierre:', this._sanitize(new Date().toLocaleString('es-CO')), W));
+        lines.push(sep);
+
+        // ── Resumen contable ──
         const numCerradas = data.num_facturas_cerradas || (data.facturas || []).filter(f => f.tipo === 'cerrada').length;
         const numAnuladas = data.num_facturas_anuladas || (data.facturas || []).filter(f => f.tipo === 'anulada').length;
         const numNA = data.num_notas_credito || (data.facturas || []).filter(f => f.tipo === 'nc').length;
         const numTotal = data.num_facturas_total || (numCerradas + numAnuladas);
 
-        lines.push(`Pedidos cobrados:   ${numCerradas}`);
-        if (numAnuladas > 0) lines.push(`Pedidos anulados:   ${numAnuladas}`);
-        if (numNA > 0) lines.push(`Notas de ajuste:    ${numNA}`);
-        if (numTotal !== numCerradas) lines.push(`Total consecutivos: ${numTotal}`);
-        lines.push(sep2);
+        lines.push(this._lr('Pedidos cobrados:', `${numCerradas}`, W));
+        if (numAnuladas > 0) lines.push(this._lr('Pedidos anulados:', `${numAnuladas}`, W));
+        if (numNA > 0) lines.push(this._lr('Notas de ajuste:', `${numNA}`, W));
+        if (numTotal !== numCerradas) lines.push(this._lr('Total consecutivos:', `${numTotal}`, W));
+        lines.push(sep);
 
-        // Header
-        lines.push('#PED   MESA  METODO     TOTAL    HORA');
-        lines.push(sep2);
+        // ── Tabla de pedidos ──
+        lines.push(BOLD + 'PED       METODO              TOTAL' + BOLD_OFF);
+        lines.push(sep);
 
         for (const f of (data.facturas || [])) {
             const tipo = (f.tipo || 'cerrada').toLowerCase();
-            const num = (f.numero_factura || '').padEnd(6, ' ');
-            const mesa = String(f.mesa_numero || '-').padEnd(5, ' ');
-            const hora = (f.hora || '').padStart(5, ' ');
-            // Ya no mostramos [FE] porque no somos facturadores electrónicos
+            const num = (f.numero_factura || '').padEnd(8, ' ');
 
             if (tipo === 'anulada') {
-                // Pedido anulado: mostrar claramente [ANULADO] y no el método de pago
-                const total = ('$' + fmt(f.total)).padStart(9, ' ');
-                lines.push(`${num} ${mesa} ANULADA    ${total} ${hora}`);
-                // Indicar la NC que la anuló
+                const total = ('$' + fmt(f.total)).padStart(14, ' ');
+                lines.push(`${num}  ANULADA          ${total}`);
                 if (f.nota_credito && f.nota_credito.numero) {
                     lines.push(`  >> Anulada por ${f.nota_credito.numero}`);
                     if (f.nota_credito.motivo) {
-                        lines.push(`     Motivo: ${f.nota_credito.motivo}`);
+                        lines.push(`     Motivo: ${this._sanitize(f.nota_credito.motivo)}`);
                     }
                 } else if (f.motivo_anulacion) {
-                    lines.push(`  >> ${f.motivo_anulacion}`);
+                    lines.push(`  >> ${this._sanitize(f.motivo_anulacion)}`);
                 }
             } else if (tipo === 'nc') {
-                // Nota de Ajuste: línea diferenciada
-                const total = ('-$' + fmt(f.total)).padStart(9, ' ');
-                lines.push(`[NA]   ${mesa}            ${total} ${hora}`);
+                const total = ('-$' + fmt(f.total)).padStart(14, ' ');
+                lines.push(`[NA]      N/A               ${total}`);
                 if (f.nota_credito && f.nota_credito.numero) {
                     lines.push(`  >> ${f.nota_credito.numero}`);
                 }
             } else {
-                // Pedido cobrado (normal o refactura)
-                const metodo = (f.metodo_pago || '').substring(0, 10).padEnd(10, ' ');
-                const total = ('$' + fmt(f.total)).padStart(9, ' ');
+                const metodo = this._sanitize((f.metodo_pago || '')).substring(0, 18).padEnd(18, ' ');
+                const total = ('$' + fmt(f.total)).padStart(14, ' ');
 
+                lines.push(`${num}  ${metodo}  ${total}`);
                 if (f.factura_origen_nc) {
-                    // Es una refactura creada por NC
-                    lines.push(`${num} ${mesa} ${metodo} ${total} ${hora}`);
                     lines.push(`  >> Refactura (origen NA)`);
-                } else {
-                    lines.push(`${num} ${mesa} ${metodo} ${total} ${hora}`);
                 }
 
                 // Pagos divididos
                 if (f.pagos && f.pagos.length > 0) {
                     for (const p of f.pagos) {
-                        const propLabel = p.propina > 0 ? ` +prop $${fmt(p.propina)}` : '';
-                        lines.push(`       ${p.metodo}: $${fmt(p.monto)}${propLabel}`);
+                        const propLabel = p.propina > 0 ? ` +serv $${fmt(p.propina)}` : '';
+                        lines.push(`          ${p.metodo}: $${fmt(p.monto)}${propLabel}`);
                     }
                 }
             }
         }
 
-        // Totales
-        lines.push(sep);
+        // ── Totales ──
+        lines.push(sep2);
         lines.push(this._lr('Total ventas:', `$${fmt(data.total_ventas)}`, W));
         lines.push(this._lr('Total servicio:', `$${fmt(data.total_propinas)}`, W));
         const totalIng = (Number(data.total_ventas) || 0) + (Number(data.total_propinas) || 0);
-        lines.push(this._lr('TOTAL INGRESO:', `$${fmt(data.total_ingreso || totalIng)}`, W));
-
         lines.push(sep);
+        lines.push(BOLD + this._lr('TOTAL INGRESO:', `$${fmt(data.total_ingreso || totalIng)}`, W) + BOLD_OFF);
+        lines.push(sep2);
+        lines.push('');
+        lines.push(this._center('** SOLO PARA CONTROL INTERNO **', W));
         lines.push(this._footer());
 
         return lines.join('\n');
     }
 
     // ══════════════════════════════════════════════════════
-    // Tirilla 3: Ventas por PLU (productos vendidos)
+    // VENTAS POR PLU — Productos vendidos en el turno
     // ══════════════════════════════════════════════════════
     formatVentasPLU(data) {
-        const lines = [];
-        const sep = '='.repeat(48);
-        const sep2 = '-'.repeat(48);
+        const ESC = '\x1B';
+        const BOLD = ESC + '\x45\x01';
+        const BOLD_OFF = ESC + '\x45\x00';
+
         const W = 48;
+        const lines = [];
+        const sep = '-'.repeat(W);
+        const sep2 = '='.repeat(W);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
-        lines.push(sep);
-        lines.push('       VENTAS POR PLU');
-        lines.push(sep);
-        lines.push(`Cajero: ${data.cajero || ''}`);
-        lines.push(`Cierre: ${new Date().toLocaleString('es-CO')}`);
+        // ── Header ──
+        if (data.tenant_nombre) {
+            lines.push(this._center(this._sanitize(data.tenant_nombre.toUpperCase()), W));
+        }
+        lines.push(sep2);
+        lines.push(BOLD + this._center('VENTAS POR PRODUCTO', W) + BOLD_OFF);
         lines.push(sep2);
 
-        // Header
-        lines.push('PRODUCTO                  CANT    TOTAL');
-        lines.push(sep2);
+        // ── Info del turno ──
+        lines.push(this._lr('Cajero:', this._sanitize(data.cajero || ''), W));
+        lines.push(this._lr('Cierre:', this._sanitize(new Date().toLocaleString('es-CO')), W));
+        lines.push(sep);
+
+        // ── Tabla de productos ──
+        lines.push(BOLD + 'PRODUCTO                  CANT    TOTAL' + BOLD_OFF);
+        lines.push(sep);
 
         for (const p of (data.productos || [])) {
-            const nombre = (p.nombre || '').substring(0, 24).padEnd(24, ' ');
+            const nombre = this._sanitize((p.nombre || '').substring(0, 24)).padEnd(24, ' ');
             const cant = String(p.cantidad).padStart(4, ' ');
             const total = ('$' + fmt(p.valor)).padStart(10, ' ');
             lines.push(`${nombre} ${cant} ${total}`);
         }
 
-        // Totales
-        lines.push(sep);
-        lines.push(this._lr('Total items:', `${data.total_items || 0}`, W));
-        lines.push(this._lr('Total valor:', `$${fmt(data.total_valor)}`, W));
-        lines.push(sep);
+        // ── Totales ──
+        lines.push(sep2);
+        lines.push(BOLD + this._lr('Total items:', `${data.total_items || 0}`, W) + BOLD_OFF);
+        lines.push(BOLD + this._lr('Total valor:', `$${fmt(data.total_valor)}`, W) + BOLD_OFF);
+        lines.push(sep2);
+        lines.push('');
+        lines.push(this._center('** SOLO PARA CONTROL INTERNO **', W));
         lines.push(this._footer());
 
         return lines.join('\n');
     }
 
-    // Formatear reporte de ventas de productos
+    // ══════════════════════════════════════════════════════
+    // REPORTE DE VENTAS — Resumen por periodo
+    // ══════════════════════════════════════════════════════
     formatReporteVentas(data) {
+        const ESC = '\x1B';
+        const BOLD = ESC + '\x45\x01';
+        const BOLD_OFF = ESC + '\x45\x00';
+
+        const W = 48;
         const lines = [];
-        const sep = '='.repeat(48);
-        const sep2 = '-'.repeat(48);
+        const sep = '-'.repeat(W);
+        const sep2 = '='.repeat(W);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
-        lines.push(sep);
-        lines.push('       REPORTE DE VENTAS');
-        lines.push(sep);
-        lines.push(`Periodo: ${data.desde || ''} a ${data.hasta || ''}`);
-        lines.push(`Generado: ${new Date().toLocaleString('es-CO')}`);
+        // ── Header ──
+        if (data.tenant_nombre) {
+            lines.push(this._center(this._sanitize(data.tenant_nombre.toUpperCase()), W));
+        }
+        lines.push(sep2);
+        lines.push(BOLD + this._center('REPORTE DE VENTAS', W) + BOLD_OFF);
         lines.push(sep2);
 
-        // Resumen KPIs
+        // ── Info del periodo ──
+        lines.push(this._lr('Periodo:', `${this._sanitize(data.desde || '')} a ${this._sanitize(data.hasta || '')}`, W));
+        lines.push(this._lr('Generado:', this._sanitize(new Date().toLocaleString('es-CO')), W));
+        lines.push(sep);
+
+        // ── Resumen KPIs ──
         if (data.resumen) {
             const r = data.resumen;
+            lines.push(BOLD + 'RESUMEN' + BOLD_OFF);
+            lines.push(sep);
+            lines.push(this._lr('  Pedidos:', `${r.total_facturas || 0}`, W));
+            lines.push(this._lr('  Venta bruta:', `$${fmt(r.venta_bruta)}`, W));
+            if (r.total_descuentos > 0) lines.push(this._lr('  Descuentos:', `-$${fmt(r.total_descuentos)}`, W));
+            lines.push(this._lr('  Venta neta:', `$${fmt(r.venta_neta)}`, W));
+            if (r.total_propinas > 0) lines.push(this._lr('  Propinas:', `$${fmt(r.total_propinas)}`, W));
+            lines.push(this._lr('  Ticket prom:', `$${fmt(r.ticket_promedio)}`, W));
+            lines.push(this._lr('  Comensales:', `${r.total_comensales || 0}`, W));
             lines.push('');
-            lines.push('RESUMEN:');
-            lines.push(sep2);
-            lines.push(`  Pedidos:      ${r.total_facturas || 0}`);
-            lines.push(`  Venta bruta:  $${fmt(r.venta_bruta)}`);
-            if (r.total_descuentos > 0) lines.push(`  Descuentos:  -$${fmt(r.total_descuentos)}`);
-            lines.push(`  Venta neta:   $${fmt(r.venta_neta)}`);
-            if (r.total_propinas > 0) lines.push(`  Propinas:     $${fmt(r.total_propinas)}`);
-            lines.push(`  Ticket prom:  $${fmt(r.ticket_promedio)}`);
-            lines.push(`  Comensales:   ${r.total_comensales || 0}`);
         }
 
-        // Productos vendidos
+        // ── Productos vendidos ──
         if (data.productos && data.productos.length > 0) {
-            lines.push('');
+            lines.push(sep2);
+            lines.push(BOLD + 'PRODUCTOS VENDIDOS' + BOLD_OFF);
             lines.push(sep);
-            lines.push('PRODUCTOS VENDIDOS:');
-            lines.push(sep2);
-            lines.push('Cant  Producto          Ingreso');
-            lines.push(sep2);
+            lines.push(BOLD + 'CANT  PRODUCTO          INGRESO' + BOLD_OFF);
+            lines.push(sep);
 
             let totalCant = 0;
             let totalIngreso = 0;
             for (const p of data.productos) {
                 const cant = String(p.cantidad || 0).padStart(3, ' ');
-                const nombre = (p.nombre || '').substring(0, 16).padEnd(16, ' ');
-                const ingreso = (p.ingreso_neto || 0).toLocaleString('es-CO');
-                lines.push(`${cant}  ${nombre}  $${ingreso}`);
+                const nombre = this._sanitize((p.nombre || '').substring(0, 16)).padEnd(16, ' ');
+                const ingreso = ('$' + fmt(p.ingreso_neto)).padStart(12, ' ');
+                lines.push(`${cant}   ${nombre} ${ingreso}`);
                 totalCant += Number(p.cantidad) || 0;
                 totalIngreso += Number(p.ingreso_neto) || 0;
             }
-            lines.push(sep2);
-            lines.push(`${String(totalCant).padStart(3, ' ')}  ${'TOTAL'.padEnd(16, ' ')}  $${fmt(totalIngreso)}`);
-        }
-
-        // Métodos de pago
-        if (data.metodos && data.metodos.length > 0) {
+            lines.push(sep);
+            lines.push(BOLD + `${String(totalCant).padStart(3, ' ')}   ${'TOTAL'.padEnd(16, ' ')} ${('$' + fmt(totalIngreso)).padStart(12, ' ')}` + BOLD_OFF);
             lines.push('');
-            lines.push(sep2);
-            lines.push('METODOS DE PAGO:');
-            lines.push(sep2);
-            for (const m of data.metodos) {
-                const metodo = (m.metodo || '').substring(0, 16).padEnd(16, ' ');
-                lines.push(`  ${metodo} $${fmt(m.total)}`);
-            }
         }
 
-        lines.push(sep);
+        // ── Metodos de pago ──
+        if (data.metodos && data.metodos.length > 0) {
+            lines.push(sep2);
+            lines.push(BOLD + 'METODOS DE PAGO' + BOLD_OFF);
+            lines.push(sep);
+            for (const m of data.metodos) {
+                const metodo = this._sanitize((m.metodo || '').substring(0, 20));
+                lines.push(this._lr(`  ${metodo}:`, `$${fmt(m.total)}`, W));
+            }
+            lines.push('');
+        }
+
+        lines.push(sep2);
+        lines.push('');
+        lines.push(this._center('** SOLO PARA CONTROL INTERNO **', W));
         lines.push(this._footer());
 
         return lines.join('\n');
@@ -911,50 +959,57 @@ class PrinterManager {
     }
 
     // ══════════════════════════════════════════
-    // CORRECCIÓN ADMINISTRATIVA — tirilla auditoría
+    // CORRECCION DE PEDIDO — Tirilla de auditoria
     // ══════════════════════════════════════════
     formatCorreccion(data) {
+        const ESC = '\x1B';
+        const BOLD = ESC + '\x45\x01';
+        const BOLD_OFF = ESC + '\x45\x00';
+
         const W = 48;
         const lines = [];
-        const sep = '='.repeat(W);
-        const sep2 = '-'.repeat(W);
+        const sep = '-'.repeat(W);
+        const sep2 = '='.repeat(W);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
         const now = new Date();
 
-        lines.push(sep);
-        lines.push(this._center('*** CORRECCION DE PEDIDO ***', W));
-        lines.push(sep);
-        lines.push('');
+        // ── Header ──
+        lines.push(sep2);
+        lines.push(BOLD + this._center('CORRECCION DE PEDIDO', W) + BOLD_OFF);
+        lines.push(sep2);
+
+        // ── Info ──
         lines.push(this._lr('Pedido:', data.numero_factura || 'N/A', W));
         if (data.mesa_numero) lines.push(this._lr('Mesa:', String(data.mesa_numero), W));
-        if (data.mesero) lines.push(this._lr('Mesero:', data.mesero, W));
-        lines.push(this._lr('Fecha:', now.toLocaleDateString('es-CO'), W));
-        lines.push(this._lr('Hora:', now.toLocaleTimeString('es-CO'), W));
-        if (data.corregido_por) lines.push(this._lr('Corregido por:', data.corregido_por, W));
-        lines.push(sep2);
-        lines.push('');
-        lines.push('CAMBIOS REALIZADOS:');
-        lines.push(sep2);
+        if (data.mesero) lines.push(this._lr('Mesero:', this._sanitize(data.mesero), W));
+        lines.push(this._lr('Fecha:', this._sanitize(now.toLocaleDateString('es-CO')), W));
+        lines.push(this._lr('Hora:', this._sanitize(now.toLocaleTimeString('es-CO')), W));
+        if (data.corregido_por) lines.push(this._lr('Corregido por:', this._sanitize(data.corregido_por), W));
+        lines.push(sep);
+
+        // ── Cambios realizados ──
+        lines.push(BOLD + 'CAMBIOS REALIZADOS' + BOLD_OFF);
+        lines.push(sep);
 
         const cambios = data.cambios || [];
         for (const c of cambios) {
             if (c.campo === 'metodo_pago') {
-                lines.push(this._lr('Metodo anterior:', String(c.anterior).toUpperCase(), W));
-                lines.push(this._lr('Metodo nuevo:', String(c.nuevo).toUpperCase(), W));
+                lines.push(this._lr('  Metodo anterior:', String(c.anterior).toUpperCase(), W));
+                lines.push(this._lr('  Metodo nuevo:', String(c.nuevo).toUpperCase(), W));
                 lines.push('');
             } else if (c.campo === 'servicio') {
-                lines.push(this._lr('Servicio anterior:', `$${fmt(c.anterior)}`, W));
-                lines.push(this._lr('Servicio nuevo:', `$${fmt(c.nuevo)}`, W));
+                lines.push(this._lr('  Servicio anterior:', `$${fmt(c.anterior)}`, W));
+                lines.push(this._lr('  Servicio nuevo:', `$${fmt(c.nuevo)}`, W));
                 lines.push('');
             } else if (c.campo === 'total') {
-                lines.push(this._lr('Total anterior:', `$${fmt(c.anterior)}`, W));
-                lines.push(this._lr('Total nuevo:', `$${fmt(c.nuevo)}`, W));
+                lines.push(this._lr('  Total anterior:', `$${fmt(c.anterior)}`, W));
+                lines.push(this._lr('  Total nuevo:', `$${fmt(c.nuevo)}`, W));
                 lines.push('');
             }
         }
 
-        lines.push(sep2);
-        lines.push(`Motivo: ${data.motivo || 'No especificado'}`);
+        lines.push(sep);
+        lines.push(BOLD + `Motivo: ${this._sanitize(data.motivo || 'No especificado')}` + BOLD_OFF);
         lines.push(sep2);
         lines.push('');
         lines.push(this._center('DOCUMENTO DE AUDITORIA', W));
@@ -965,52 +1020,59 @@ class PrinterManager {
     }
 
     // ══════════════════════════════════════════
-    // NOTA DE AJUSTE — documento de anulación
+    // NOTA DE AJUSTE — Documento de anulacion
     // ══════════════════════════════════════════
     formatNotaCredito(data) {
+        const ESC = '\x1B';
+        const BOLD = ESC + '\x45\x01';
+        const BOLD_OFF = ESC + '\x45\x00';
+
         const W = 48;
         const lines = [];
-        const sep = '='.repeat(W);
-        const sep2 = '-'.repeat(W);
+        const sep = '-'.repeat(W);
+        const sep2 = '='.repeat(W);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
         const now = new Date();
 
-        lines.push(sep);
-        lines.push(this._center('*** NOTA DE AJUSTE ***', W));
-        lines.push(this._center(data.numero_nota || '', W));
-        lines.push(sep);
-        lines.push('');
+        // ── Header ──
+        lines.push(sep2);
+        lines.push(BOLD + this._center('*** NOTA DE AJUSTE ***', W) + BOLD_OFF);
+        if (data.numero_nota) {
+            lines.push(this._center(data.numero_nota, W));
+        }
+        lines.push(sep2);
+
+        // ── Info ──
         lines.push(this._lr('Tipo:', (data.tipo || 'total').toUpperCase(), W));
         lines.push(this._lr('Pedido anulado:', data.factura_original || '', W));
         if (data.mesa_numero) lines.push(this._lr('Mesa destino:', String(data.mesa_numero), W));
-        if (data.mesero) lines.push(this._lr('Mesero:', data.mesero, W));
-        lines.push(this._lr('Fecha:', now.toLocaleDateString('es-CO'), W));
-        lines.push(this._lr('Hora:', now.toLocaleTimeString('es-CO'), W));
-        lines.push(sep2);
+        if (data.mesero) lines.push(this._lr('Mesero:', this._sanitize(data.mesero), W));
+        lines.push(this._lr('Fecha:', this._sanitize(now.toLocaleDateString('es-CO')), W));
+        lines.push(this._lr('Hora:', this._sanitize(now.toLocaleTimeString('es-CO')), W));
+        lines.push(sep);
 
-        // Detalle de lo anulado
+        // ── Items del pedido original ──
         const det = data.detalle || {};
         if (det.items_anulados && det.items_anulados.length > 0) {
-            lines.push('');
-            lines.push('ITEMS DEL PEDIDO ORIGINAL:');
-            lines.push(sep2);
+            lines.push(BOLD + 'ITEMS DEL PEDIDO ORIGINAL' + BOLD_OFF);
+            lines.push(sep);
             for (const item of det.items_anulados) {
                 const total = item.cantidad * item.precio_unitario;
-                const nombre = (item.plato_nombre || '').substring(0, 28);
-                lines.push(`${nombre}`);
+                const nombre = this._sanitize((item.plato_nombre || '').substring(0, 28));
+                lines.push(BOLD + `${nombre}` + BOLD_OFF);
                 lines.push(this._lr(`  ${item.cantidad} x $${fmt(item.precio_unitario)}`, `$${fmt(total)}`, W));
             }
-            lines.push(sep2);
+            lines.push(sep);
         }
 
-        lines.push('');
+        // ── Totales ──
         if (det.subtotal_original) lines.push(this._lr('Subtotal original:', `$${fmt(det.subtotal_original)}`, W));
         if (det.servicio_original) lines.push(this._lr('Servicio original:', `$${fmt(det.servicio_original)}`, W));
-        lines.push(sep2);
-        lines.push(this._lr('MONTO ANULADO:', `$${fmt(data.monto_anulado)}`, W));
+        lines.push(sep);
+        lines.push(BOLD + this._lr('MONTO ANULADO:', `$${fmt(data.monto_anulado)}`, W) + BOLD_OFF);
         lines.push(sep2);
         lines.push('');
-        lines.push(`Motivo: ${data.motivo || 'No especificado'}`);
+        lines.push(BOLD + `Motivo: ${this._sanitize(data.motivo || 'No especificado')}` + BOLD_OFF);
         lines.push(sep2);
         lines.push('');
         lines.push(this._center('DOCUMENTO DE CONTROL', W));
