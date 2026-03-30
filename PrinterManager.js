@@ -418,14 +418,11 @@ class PrinterManager {
         if (factura.descuento_monto > 0) {
             lines.push(this._lr('DESCUENTO:', `-$${fmt(factura.descuento_monto)}`, W));
         }
-        if (factura.monto_servicio > 0) {
-            lines.push(this._lr('SERVICIO:', `$${fmt(factura.monto_servicio)}`, W));
-        }
         if (factura.monto_iva > 0) {
             lines.push(this._lr('IVA:', `$${fmt(factura.monto_iva)}`, W));
         }
         if (factura.propina > 0) {
-            lines.push(this._lr('PROPINA:', `$${fmt(factura.propina)}`, W));
+            lines.push(this._lr('SERVICIO:', `$${fmt(factura.propina)}`, W));
         }
         lines.push(sep2);
         lines.push(this._lr('TOTAL PEDIDO:', `$ ${fmt(factura.total)}`, W));
@@ -554,9 +551,7 @@ class PrinterManager {
         const propinaPct = Number(data.porcentaje_propina_sugerida) || 10;
         const propinaMonto = Number(data.propina_sugerida) || Math.round((Number(data.subtotal) || 0) * propinaPct / 100);
         if (propinaMonto > 0) {
-            lines.push(this._center(`(${propinaPct}%)`, W));
-            lines.push(sep);
-            lines.push(this._lr('PROPINA SUGERIDA :', `$ ${fmt(propinaMonto || 0)}`, W));
+            lines.push(this._lr('SERVICIO SUGERIDO ', `(${propinaPct}%)`, ' :', `$ ${fmt(propinaMonto || 0)}`, W));
             lines.push(sep);
             lines.push(this._lr('TOTAL + SERVICIO:', `$ ${fmt((Number(data.total) || 0) + propinaMonto)}`, W));
         }
