@@ -551,7 +551,7 @@ class PrinterManager {
         const propinaPct = Number(data.porcentaje_propina_sugerida) || 10;
         const propinaMonto = Number(data.propina_sugerida) || Math.round((Number(data.subtotal) || 0) * propinaPct / 100);
         if (propinaMonto > 0) {
-            lines.push(this._lr('SERVICIO SUGERIDO ', `(${propinaPct}%)`, ' :', `$ ${fmt(propinaMonto || 0)}`, W));
+            lines.push(this._lr('SERVICIO SUGERIDO ' + `(${propinaPct}%)` + ' :', `$ ${fmt(propinaMonto || 0)}`, W));
             lines.push(sep);
             lines.push(this._lr('TOTAL + SERVICIO:', `$ ${fmt((Number(data.total) || 0) + propinaMonto)}`, W));
         }
