@@ -118,9 +118,9 @@ function connectWebSocket() {
         try {
             const esAnulacion = data.tipo_comanda === 'anulacion' || data.payload?.tipo_comanda === 'anulacion';
             if (esAnulacion) {
-                printerManager.log(`🚫 ANULACIÓN #${data.numero_comanda} → ${data.area_destino} (Mesa ${data.numero_mesa})`);
+                printerManager.log(`🚫 ANULACIÓN #${data.numero_comanda} → ${data.area_destino} (${data.mesa_nombre || 'Mesa ' + data.numero_mesa})`);
             } else {
-                printerManager.log(`🔔 Comanda #${data.numero_comanda} → ${data.area_destino} (Mesa ${data.numero_mesa})`);
+                printerManager.log(`🔔 Comanda #${data.numero_comanda} → ${data.area_destino} (${data.mesa_nombre || 'Mesa ' + data.numero_mesa})`);
             }
             await handleNuevaComanda(data);
         } catch (err) {
@@ -131,7 +131,7 @@ function connectWebSocket() {
     // ── Escuchar pedidos cerrados → imprimir ticket ──
     socket.on('factura:cerrada', async (data) => {
         try {
-            printerManager.log(`🧾 Pedido ${data.numero_factura} cerrado → Mesa ${data.mesa_numero}`);
+            printerManager.log(`🧾 Pedido ${data.numero_factura} cerrado → ${data.mesa_nombre || 'Mesa ' + data.mesa_numero}`);
             const text = printerManager.formatFactura(data);
             await printerManager.print('caja', text);
         } catch (err) {
@@ -142,7 +142,7 @@ function connectWebSocket() {
     // ── Escuchar precuentas → imprimir verificadora ──
     socket.on('precuenta:generada', async (data) => {
         try {
-            printerManager.log(`📋 Precuenta Mesa ${data.mesa_numero} → caja`);
+            printerManager.log(`📋 Precuenta ${data.mesa_nombre || 'Mesa ' + data.mesa_numero} → caja`);
             const text = printerManager.formatPrecuenta(data);
             await printerManager.print('caja', text);
         } catch (err) {

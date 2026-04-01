@@ -248,7 +248,7 @@ class PrinterManager {
         lines.push(sep2);
 
         // Info mesa
-        lines.push(`Mesa: ${payload.mesa}  |  ${this._sanitize(payload.mesero || '')}`);
+        lines.push(`${payload.mesa_nombre || ('Mesa: ' + payload.mesa)}  |  ${this._sanitize(payload.mesero || '')}`);
         if (payload.comensales) lines.push(`Personas: ${payload.comensales}`);
         lines.push(`Fecha: ${fecha}   Hora: ${hora}`);
         lines.push(sep);
@@ -307,7 +307,7 @@ class PrinterManager {
         lines.push(sep2);
 
         // Info mesa
-        lines.push(`Mesa: ${payload.mesa}  |  ${this._sanitize(payload.mesero || '')}`);
+        lines.push(`${payload.mesa_nombre || ('Mesa: ' + payload.mesa)}  |  ${this._sanitize(payload.mesero || '')}`);
         lines.push(`Fecha: ${fecha}   Hora: ${hora}`);
         lines.push(sep);
 
@@ -372,7 +372,7 @@ class PrinterManager {
 
         // Info
         lines.push(`Fecha: ${fecha}        Hora: ${hora}`);
-        lines.push(`Mesa: ${factura.mesa_numero || ''}`);
+        lines.push(`${factura.mesa_nombre || ('Mesa: ' + (factura.mesa_numero || ''))}`);
         lines.push(`Mesero: ${factura.mesero || ''}`);
         lines.push(sep);
 
@@ -492,7 +492,7 @@ class PrinterManager {
 
         // Info
         lines.push(`Fecha: ${fecha}        Hora: ${hora}`);
-        lines.push(`MESA: ${data.mesa_numero || ''}`);
+        lines.push(`${data.mesa_nombre || ('MESA: ' + (data.mesa_numero || ''))}`);
         lines.push(`MESERO: ${data.mesero || ''}`);
         lines.push(sep);
 
@@ -1045,7 +1045,8 @@ class PrinterManager {
         // ── Info ──
         lines.push(this._lr('Tipo:', (data.tipo || 'total').toUpperCase(), W));
         lines.push(this._lr('Pedido anulado:', data.factura_original || '', W));
-        if (data.mesa_numero) lines.push(this._lr('Mesa destino:', String(data.mesa_numero), W));
+        if (data.mesa_nombre) lines.push(this._lr('Destino:', data.mesa_nombre, W));
+        else if (data.mesa_numero) lines.push(this._lr('Mesa destino:', String(data.mesa_numero), W));
         if (data.mesero) lines.push(this._lr('Mesero:', this._sanitize(data.mesero), W));
         lines.push(this._lr('Fecha:', this._sanitize(now.toLocaleDateString('es-CO')), W));
         lines.push(this._lr('Hora:', this._sanitize(now.toLocaleTimeString('es-CO')), W));
