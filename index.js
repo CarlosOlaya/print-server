@@ -62,6 +62,11 @@ function registerPrinters() {
 }
 registerPrinters();
 
+// Configurar zona horaria si existe en config
+if (config.zona_horaria) {
+    printerManager.setTimezone(config.zona_horaria);
+}
+
 // ============================================================
 // WEBSOCKET - Conectar a la API en la nube
 // ============================================================
@@ -96,6 +101,15 @@ function connectWebSocket() {
         connected = true;
         printerManager.log(`✅ Conectado a la API (socket: ${socket.id})`);
         printerManager.log(`📡 Escuchando eventos del tenant: ${config.tenant_id.substring(0, 8)}...`);
+    });
+
+    // ── Recibir zona horaria del tenant (enviada por la API al conectar) ──
+    socket.on('config:timezone', (data) => {
+        if (data && data.zona_horaria) {
+            config.zona_horaria = data.zona_horaria;
+            saveConfig(config);
+            printerManager.setTimezone(data.zona_horaria);
+        }
     });
 
     socket.on('disconnect', (reason) => {
@@ -339,7 +353,8 @@ app.post('/test-print/:area', async (req, res) => {
         '    *** PRUEBA DE IMPRESION ***',
         '-'.repeat(48),
         `  Area: ${area.toUpperCase()}`,
-        `  Fecha: ${new Date().toLocaleString('es-CO')}`,
+        `  Zona horaria: ${printerManager._tz}`,
+        `  Fecha: ${printerManager._fechaHoraSimple(new Date())}`,
         '-'.repeat(48),
         '  Si ves esto, la impresora',
         '  esta correctamente configurada!',

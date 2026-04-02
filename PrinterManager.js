@@ -14,6 +14,14 @@ class PrinterManager {
         // Cola de impresión por impresora
         this._queues = {};   // { area: [{ text, resolve, reject }] }
         this._printing = {}; // { area: boolean }
+        // Zona horaria del tenant (configurable desde config.json)
+        this._tz = 'America/Bogota';
+    }
+
+    // Configurar zona horaria del tenant
+    setTimezone(tz) {
+        this._tz = tz || 'America/Bogota';
+        this.log(`🕐 Zona horaria configurada: ${this._tz}`);
     }
 
     // Registrar una impresora por area
@@ -214,13 +222,47 @@ class PrinterManager {
     }
 
     // ── Helper: hora simple sin caracteres unicode del locale ──
-    _horaSimple() {
-        const now = new Date();
-        let h = now.getHours();
-        const m = String(now.getMinutes()).padStart(2, '0');
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        h = h % 12 || 12;
-        return `${h}:${m} ${ampm}`;
+    _horaSimple(date) {
+        const now = date || new Date();
+        try {
+            return this._sanitize(now.toLocaleTimeString('es-CO', {
+                timeZone: this._tz,
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true,
+            }));
+        } catch (e) {
+            // Fallback si el timezone no es valido
+            let h = now.getHours();
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            return `${h}:${m} ${ampm}`;
+        }
+    }
+
+    // ── Helper: fecha en zona horaria del tenant ──
+    _fechaSimple(date) {
+        const now = date || new Date();
+        try {
+            return this._sanitize(now.toLocaleDateString('es-CO', {
+                timeZone: this._tz,
+            }));
+        } catch (e) {
+            return now.toLocaleDateString('es-CO');
+        }
+    }
+
+    // ── Helper: fecha+hora completa en zona horaria ──
+    _fechaHoraSimple(date) {
+        const now = date || new Date();
+        try {
+            return this._sanitize(now.toLocaleString('es-CO', {
+                timeZone: this._tz,
+            }));
+        } catch (e) {
+            return now.toLocaleString('es-CO');
+        }
     }
 
     // ══════════════════════════════════════════
@@ -240,8 +282,8 @@ class PrinterManager {
         const sep = '-'.repeat(W);
         const sep2 = '='.repeat(W);
         const now = new Date();
-        const fecha = now.toLocaleDateString('es-CO');
-        const hora = payload.hora ? this._sanitize(String(payload.hora)) : this._horaSimple();
+        const fecha = this._fechaSimple(now);
+        const hora = payload.hora ? this._sanitize(String(payload.hora)) : this._horaSimple(now);
 
         // Header
         lines.push(this._center(`COMANDA #${payload.comanda} | ${this._sanitize((payload.area || '').toUpperCase())}`, W));
@@ -297,8 +339,8 @@ class PrinterManager {
         const sep2 = '='.repeat(W);
         const sepX = 'X'.repeat(W);
         const now = new Date();
-        const fecha = now.toLocaleDateString('es-CO');
-        const hora = payload.hora ? this._sanitize(String(payload.hora)) : this._horaSimple();
+        const fecha = this._fechaSimple(now);
+        const hora = payload.hora ? this._sanitize(String(payload.hora)) : this._horaSimple(now);
 
         // Header ANULACIÓN
         lines.push(sep2);
@@ -355,8 +397,8 @@ class PrinterManager {
         const sep = '-'.repeat(W);
         const sep2 = '='.repeat(W);
         const now = new Date();
-        const fecha = now.toLocaleDateString('es-CO');
-        const hora = now.toLocaleTimeString('es-CO');
+        const fecha = this._fechaSimple(now);
+        const hora = this._horaSimple(now);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
         // Empresa header
@@ -478,8 +520,8 @@ class PrinterManager {
         const sep = '-'.repeat(W);
         const sep2 = '='.repeat(W);
         const now = new Date();
-        const fecha = now.toLocaleDateString('es-CO');
-        const hora = now.toLocaleTimeString('es-CO');
+        const fecha = this._fechaSimple(now);
+        const hora = this._horaSimple(now);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
         // Header
@@ -590,9 +632,9 @@ class PrinterManager {
         // ── Info del turno ──
         lines.push(this._lr('Cajero:', this._sanitize(data.cajero || ''), W));
         if (data.fecha_apertura) {
-            lines.push(this._lr('Apertura:', this._sanitize(new Date(data.fecha_apertura).toLocaleString('es-CO')), W));
+            lines.push(this._lr('Apertura:', this._fechaHoraSimple(new Date(data.fecha_apertura)), W));
         }
-        lines.push(this._lr('Cierre:', this._sanitize(new Date(data.fecha_cierre || Date.now()).toLocaleString('es-CO')), W));
+        lines.push(this._lr('Cierre:', this._fechaHoraSimple(new Date(data.fecha_cierre || Date.now())), W));
         lines.push(sep);
 
         // ── Ventas por metodo de pago ──
@@ -715,7 +757,7 @@ class PrinterManager {
 
         // ── Info del turno ──
         lines.push(this._lr('Cajero:', this._sanitize(data.cajero || ''), W));
-        lines.push(this._lr('Cierre:', this._sanitize(new Date().toLocaleString('es-CO')), W));
+        lines.push(this._lr('Cierre:', this._fechaHoraSimple(new Date()), W));
         lines.push(sep);
 
         // ── Resumen contable ──
@@ -813,7 +855,7 @@ class PrinterManager {
 
         // ── Info del turno ──
         lines.push(this._lr('Cajero:', this._sanitize(data.cajero || ''), W));
-        lines.push(this._lr('Cierre:', this._sanitize(new Date().toLocaleString('es-CO')), W));
+        lines.push(this._lr('Cierre:', this._fechaHoraSimple(new Date()), W));
         lines.push(sep);
 
         // ── Tabla de productos ──
@@ -863,7 +905,7 @@ class PrinterManager {
 
         // ── Info del periodo ──
         lines.push(this._lr('Periodo:', `${this._sanitize(data.desde || '')} a ${this._sanitize(data.hasta || '')}`, W));
-        lines.push(this._lr('Generado:', this._sanitize(new Date().toLocaleString('es-CO')), W));
+        lines.push(this._lr('Generado:', this._fechaHoraSimple(new Date()), W));
         lines.push(sep);
 
         // ── Resumen KPIs ──
@@ -982,8 +1024,8 @@ class PrinterManager {
         lines.push(this._lr('Pedido:', data.numero_factura || 'N/A', W));
         if (data.mesa_numero) lines.push(this._lr('Mesa:', String(data.mesa_numero), W));
         if (data.mesero) lines.push(this._lr('Mesero:', this._sanitize(data.mesero), W));
-        lines.push(this._lr('Fecha:', this._sanitize(now.toLocaleDateString('es-CO')), W));
-        lines.push(this._lr('Hora:', this._sanitize(now.toLocaleTimeString('es-CO')), W));
+        lines.push(this._lr('Fecha:', this._fechaSimple(now), W));
+        lines.push(this._lr('Hora:', this._horaSimple(now), W));
         if (data.corregido_por) lines.push(this._lr('Corregido por:', this._sanitize(data.corregido_por), W));
         lines.push(sep);
 
@@ -1048,8 +1090,8 @@ class PrinterManager {
         if (data.mesa_nombre) lines.push(this._lr('Destino:', data.mesa_nombre, W));
         else if (data.mesa_numero) lines.push(this._lr('Mesa destino:', String(data.mesa_numero), W));
         if (data.mesero) lines.push(this._lr('Mesero:', this._sanitize(data.mesero), W));
-        lines.push(this._lr('Fecha:', this._sanitize(now.toLocaleDateString('es-CO')), W));
-        lines.push(this._lr('Hora:', this._sanitize(now.toLocaleTimeString('es-CO')), W));
+        lines.push(this._lr('Fecha:', this._fechaSimple(now), W));
+        lines.push(this._lr('Hora:', this._horaSimple(now), W));
         lines.push(sep);
 
         // ── Items del pedido original ──
