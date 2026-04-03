@@ -707,7 +707,8 @@ class PrinterManager {
         const BOLD_OFF = ESC + '\x45\x00';
 
         const lines = [];
-        lines.push(this._header(data));
+        lines.push('\x1B\x40'); // INICIALIZAR IMPRESORA
+        lines.push('\x1D\x4C\x00\x00'); // MARGEN IZQUIERDO = 0
         lines.push('');
         if (data.cliente) {
             lines.push(...this._formatDatosEntrega(data, W, sep, sep2, BOLD, BOLD_OFF));
