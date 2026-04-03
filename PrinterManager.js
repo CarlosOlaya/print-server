@@ -689,6 +689,7 @@ class PrinterManager {
             lines.push('\x1B\x40');     // INICIALIZAR IMPRESORA
             lines.push('\x1D\x4C\x00\x00'); // MARGEN IZQUIERDO = 0
             lines.push(...this._formatDatosEntrega(data, W, sep, sep2, BOLD, BOLD_OFF));
+            lines.push(this._footer());
         }
 
         return lines.join('\n');
