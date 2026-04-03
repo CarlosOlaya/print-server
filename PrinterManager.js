@@ -391,6 +391,42 @@ class PrinterManager {
     // ══════════════════════════════════════════
     // PEDIDO — tirilla de cobro
     // ══════════════════════════════════════════
+    //
+    // Contrato del parámetro `factura`:
+    //   Ver api-foodly/src/facturacion/interfaces/factura-cerrada.payload.ts
+    //
+    // Campos utilizados:
+    //   .tenant_nombre  string   — Nombre del restaurante
+    //   .nit            string   — NIT del restaurante
+    //   .numero_factura string   — Ej: 'PED-00123'
+    //   .mesa_nombre    string   — Ej: 'Terraza 1'
+    //   .mesa_numero    number   — Número de la mesa (fallback)
+    //   .mesero         string   — Nombre del mesero
+    //   .items[]        array    — Items del pedido
+    //     .plato / .nombre   string  — Nombre del plato
+    //     .cantidad          number
+    //     .precio_unitario   number
+    //     .descuento_porcentaje number
+    //     .descuento_monto     number
+    //     .es_cortesia         boolean
+    //   .subtotal       number   — Subtotal (bruto - descuentos)
+    //   .descuento_monto number  — Descuento total aplicado
+    //   .monto_iva      number   — IVA calculado
+    //   .propina         number  — Servicio total
+    //   .total           number  — Total de la factura
+    //   .metodo_pago     string  — 'efectivo', 'efectivo+tarjeta', etc.
+    //   .pagos[]         array   — Desglose por método (SIEMPRE >= 1 elemento)
+    //     .metodo          string  — Clave: 'efectivo', 'tarjeta', etc.
+    //     .monto           number  — Venta neta de este método
+    //     .propina         number  — Servicio de este método
+    //
+    /**
+     * Genera texto ESC/POS para la tirilla de cobro de un pedido.
+     *
+     * @param {object} factura — Payload del evento 'factura:cerrada'.
+     *   Contrato definido en FacturaCerradaPayload (api-foodly).
+     * @returns {string} Texto formateado para impresora térmica de 48 columnas.
+     */
     formatFactura(factura) {
         const W = 48;
         const lines = [];
@@ -401,26 +437,25 @@ class PrinterManager {
         const hora = this._horaSimple(now);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
-        // Empresa header
+        // ── Header: nombre restaurante y NIT ──
         if (factura.tenant_nombre) {
             lines.push(this._center(factura.tenant_nombre.toUpperCase(), W));
         }
         if (factura.nit) lines.push(this._center(`NIT: ${factura.nit}`, W));
         lines.push(sep);
 
-        // Documento
+        // ── Número de documento ──
         lines.push(this._center(factura.numero_factura || 'PEDIDO', W));
         lines.push(sep);
 
-        // Info
+        // ── Info: fecha, mesa, mesero ──
         lines.push(`Fecha: ${fecha}        Hora: ${hora}`);
         lines.push(`${factura.mesa_nombre || ('Mesa: ' + (factura.mesa_numero || ''))}`);
         lines.push(`Mesero: ${factura.mesero || ''}`);
         lines.push(sep);
 
-        // Tabla items
+        // ── Tabla de items ──
         if (factura.items) {
-            //        CANT  PRODUCTO         V.UNI     TOTAL
             lines.push('CANT  PRODUCTO                V.UNI    TOTAL');
             lines.push(sep);
             factura.items.forEach(item => {
@@ -435,18 +470,15 @@ class PrinterManager {
                 const esCortesia = Boolean(item.es_cortesia);
 
                 if (esCortesia) {
-                    // Cortesía: mostrar precio original y $0
                     const vuni = this._rpad(fmt(precio), 8);
                     lines.push(`${cant}  ${nombre} ${vuni}       $0`);
                     lines.push(`      ** CORTESIA **`);
                 } else if (descPct > 0) {
-                    // Descuento parcial
                     const vuni = this._rpad(fmt(precio), 8);
                     const total = this._rpad(fmt(totalNeto), 8);
                     lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
                     lines.push(`      Dcto -${descPct}% (-$${fmt(descMonto)})`);
                 } else {
-                    // Sin descuento
                     const vuni = this._rpad(fmt(precio), 8);
                     const total = this._rpad(fmt(totalBruto), 8);
                     lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
@@ -455,7 +487,7 @@ class PrinterManager {
             lines.push(sep);
         }
 
-        // Totales
+        // ── Totales ──
         lines.push(this._lr('SUBTOTAL:', `$${fmt(factura.subtotal)}`, W));
         if (factura.descuento_monto > 0) {
             lines.push(this._lr('DESCUENTO:', `-$${fmt(factura.descuento_monto)}`, W));
@@ -470,7 +502,8 @@ class PrinterManager {
         lines.push(this._lr('TOTAL PEDIDO:', `$ ${fmt(factura.total)}`, W));
         lines.push(sep2);
 
-        // Forma de pago
+        // ── Sección FORMAS DE PAGO ──
+        // Mapa de claves internas → etiquetas legibles para la tirilla
         const metodoLabels = {
             efectivo: 'Efectivo', tarjeta: 'Tarjeta', datafono: 'Tarjeta',
             transferencia: 'Transferencia', nequi: 'Nequi', daviplata: 'Daviplata',
@@ -479,29 +512,58 @@ class PrinterManager {
         };
         const labelMetodo = (m) => {
             const key = (m || '').toLowerCase();
-            // Formato compuesto: 'efectivo+datafono'
             if (key.includes('+')) {
                 return key.split('+').map(k => metodoLabels[k] || k).join(' + ');
             }
             return metodoLabels[key] || m || 'Efectivo';
         };
 
-        lines.push(this._center('FORMAS DE PAGO', W));
-        lines.push(sep);
-        if (factura.pagos && factura.pagos.length > 0) {
-            // Desglose por método con sus montos y propinas individuales
+        // Determinar si es pago dividido (>1 método en el array pagos)
+        const tienePagos = factura.pagos && factura.pagos.length > 0;
+        const esDividido = tienePagos && factura.pagos.length > 1;
+
+        if (esDividido) {
+            // ── PAGO DIVIDIDO: desglose detallado por método ──
+            lines.push(this._center('FORMAS DE PAGO (DIVIDIDO)', W));
+            lines.push(sep);
+
             for (const p of factura.pagos) {
-                const metodoStr = labelMetodo(p.metodo || p.metodo_pago).padEnd(14, ' ');
-                lines.push(this._lr(metodoStr + ':', `$${fmt(p.monto)}`, W));
-                if (Number(p.propina) > 0) {
-                    lines.push(this._lr('  + Servicio:', `$${fmt(p.propina)}`, W));
+                const metodoLabel = labelMetodo(p.metodo || p.metodo_pago);
+                const monto = Number(p.monto) || 0;
+                const propina = Number(p.propina) || 0;
+                const subtotalMetodo = monto + propina;
+
+                lines.push(metodoLabel + ':');
+                lines.push(this._lr('  Subtotal:', `$${fmt(monto)}`, W));
+                if (propina > 0) {
+                    lines.push(this._lr('  + Servicio:', `$${fmt(propina)}`, W));
                 }
+                lines.push(this._lr('  Total metodo:', `$${fmt(subtotalMetodo)}`, W));
+                lines.push(sep);
+            }
+
+            // Línea de verificación: suma de todos los métodos
+            const totalCobrado = factura.pagos.reduce((s, p) =>
+                s + (Number(p.monto) || 0) + (Number(p.propina) || 0), 0);
+            lines.push(this._lr('TOTAL COBRADO:', `$${fmt(totalCobrado)}`, W));
+        } else if (tienePagos) {
+            // ── PAGO SIMPLE: un solo método ──
+            lines.push(this._center('FORMAS DE PAGO', W));
+            lines.push(sep);
+            const p = factura.pagos[0];
+            const metodoStr = labelMetodo(p.metodo || p.metodo_pago).padEnd(14, ' ');
+            lines.push(this._lr(metodoStr + ':', `$${fmt(p.monto)}`, W));
+            if (Number(p.propina) > 0) {
+                lines.push(this._lr('  + Servicio:', `$${fmt(p.propina)}`, W));
             }
         } else if (factura.metodo_pago) {
-            // Pago simple o fallback
+            // ── FALLBACK: facturas legacy sin array pagos ──
+            lines.push(this._center('FORMAS DE PAGO', W));
+            lines.push(sep);
             const metodoStr = labelMetodo(factura.metodo_pago);
             lines.push(this._lr(metodoStr + ':', `$${fmt(factura.total)}`, W));
         }
+
         lines.push(sep);
         lines.push('');
         lines.push(this._center('** SOLO PARA CONTROL INTERNO **', W));
