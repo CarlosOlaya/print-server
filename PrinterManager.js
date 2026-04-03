@@ -290,7 +290,7 @@ class PrinterManager {
         lines.push(sep2);
 
         // Info mesa
-        lines.push(`${payload.mesa_nombre || ('Mesa: ' + payload.mesa)}  |  ${this._sanitize(payload.mesero || '')}`);
+        lines.push(`${BOLD}${payload.mesa_nombre || ('Mesa: ' + payload.mesa)}${BOLD_OFF}   Mesero: ${this._sanitize(payload.mesero || '')}`);
         if (payload.comensales) lines.push(`Personas: ${payload.comensales}`);
         lines.push(`Fecha: ${fecha}   Hora: ${hora}`);
         lines.push(sep);
@@ -349,7 +349,7 @@ class PrinterManager {
         lines.push(sep2);
 
         // Info mesa
-        lines.push(`${payload.mesa_nombre || ('Mesa: ' + payload.mesa)}  |  ${this._sanitize(payload.mesero || '')}`);
+        lines.push(`${BOLD}${payload.mesa_nombre || ('Mesa: ' + payload.mesa)}${BOLD_OFF}   Mesero: ${this._sanitize(payload.mesero || '')}`);
         lines.push(`Fecha: ${fecha}   Hora: ${hora}`);
         lines.push(sep);
 
@@ -643,21 +643,30 @@ class PrinterManager {
         if (data.descuento_mesa > 0) {
             lines.push(this._lr('Descuento:', `-$${fmt(data.descuento_mesa)}`, W));
         }
-        if (data.monto_servicio > 0) {
+        // Propina sugerida
+        const esDelivery = data.mesa_nombre && /domicilio|llevar/i.test(data.mesa_nombre);
+
+        if (data.monto_servicio > 0 && !esDelivery) {
             lines.push(this._lr('Servicio:', `$${fmt(data.monto_servicio)}`, W));
         }
         if (data.monto_iva > 0) {
             lines.push(this._lr('IVA:', `$${fmt(data.monto_iva)}`, W));
         }
 
+        lines.push(sep);
+
 
         // Propina sugerida
         const propinaPct = Number(data.porcentaje_propina_sugerida) || 10;
         const propinaMonto = Number(data.propina_sugerida) || Math.round((Number(data.subtotal) || 0) * propinaPct / 100);
-        if (propinaMonto > 0) {
+
+        if (propinaMonto > 0 && !esDelivery) {
             lines.push(this._lr('SERVICIO SUGERIDO ' + `(${propinaPct}%)` + ' :', `$ ${fmt(propinaMonto || 0)}`, W));
             lines.push(sep);
             lines.push(this._lr('TOTAL + SERVICIO:', `$ ${fmt((Number(data.total) || 0) + propinaMonto)}`, W));
+        } else {
+            // El total (sin propina voluntaria)
+            lines.push(this._lr('TOTAL A PAGAR:', `$ ${fmt(data.total)}`, W));
         }
 
         lines.push(sep2);
