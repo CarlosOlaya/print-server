@@ -601,7 +601,7 @@
     <header class="header">
         <div class="header-left">
             <div class="header-logo">🖨️</div>
-            <h1>Print Server <span>v2.0</span></h1>
+            <h1>Print Server <span>v2.2</span></h1>
         </div>
         <div id="connectionBadge" class="connection-badge pending">
             <div class="dot"></div>
@@ -629,21 +629,21 @@
                         <label>Tenant ID (ID del restaurante)</label>
                         <input type="text" id="cfgTenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
                         <div class="config-hint">Lo encuentras en el Dashboard → Empresa → Tenant ID</div>
-                            <code>JSON.parse(atob(localStorage.getItem('token').split('.')[1])).tenant_id</code>
-                        </div>
-                    </div>
-                    <div class="config-field">
-                        <label>URL de la API</label>
-                        <input type="text" id="cfgApiUrl" placeholder="https://tu-api.onrender.com">
-                    </div>
-                    <div style="display:flex;gap:8px;padding-bottom:22px">
-                        <button class="btn btn-save" onclick="saveMainConfig()">
-                            <span class="material-icons-round">save</span>
-                            Guardar y conectar
-                        </button>
+                        <code>JSON.parse(atob(localStorage.getItem('token').split('.')[1])).tenant_id</code>
                     </div>
                 </div>
+                <div class="config-field">
+                    <label>URL de la API</label>
+                    <input type="text" id="cfgApiUrl" placeholder="https://tu-api.onrender.com">
+                </div>
+                <div style="display:flex;gap:8px;padding-bottom:22px">
+                    <button class="btn btn-save" onclick="saveMainConfig()">
+                        <span class="material-icons-round">save</span>
+                        Guardar y conectar
+                    </button>
+                </div>
             </div>
+        </div>
         </div>
 
         <!-- Stats -->
