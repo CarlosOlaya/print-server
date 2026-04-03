@@ -677,6 +677,44 @@ class PrinterManager {
         lines.push(this._center('Documento de verificacion', W));
         lines.push(this._footer());
 
+        // ── SEGUNDA TIRILLA: DATOS DE CLIENTE (DOMICILIO/LLEVAR) ──
+        if (esDelivery && data.cliente) {
+            const ESC = '\x1B';
+            const BOLD = ESC + '\x45\x01';
+            const BOLD_OFF = ESC + '\x45\x00';
+
+            lines.push('');
+            lines.push('');
+            lines.push('\x1D\x56\x00'); // CORTAR PAPEL
+            lines.push('\x1B\x40');     // INICIALIZAR IMPRESORA
+            lines.push('\x1D\x4C\x00\x00'); // MARGEN IZQUIERDO = 0
+            
+            lines.push(sep2);
+            lines.push(BOLD + this._center('DATOS PARA ENTREGA', W) + BOLD_OFF);
+            lines.push(this._center(data.mesa_nombre ? String(data.mesa_nombre).toUpperCase() : '', W));
+            lines.push(sep2);
+            lines.push('');
+            
+            if (data.cliente.nombre) {
+                lines.push(BOLD + 'Cliente: ' + BOLD_OFF + this._sanitize(data.cliente.nombre));
+            }
+            if (data.cliente.telefono) {
+                lines.push(BOLD + 'Telefono: ' + BOLD_OFF + this._sanitize(data.cliente.telefono));
+            }
+            if (data.cliente.direccion) {
+                lines.push(BOLD + 'Direccion: ' + BOLD_OFF + this._sanitize(data.cliente.direccion));
+            }
+            if (data.cliente.notas) {
+                lines.push(sep);
+                lines.push(BOLD + 'Notas:' + BOLD_OFF);
+                lines.push(this._sanitize(data.cliente.notas));
+            }
+            
+            lines.push('');
+            lines.push(sep2);
+            lines.push(this._footer());
+        }
+
         return lines.join('\n');
     }
 
