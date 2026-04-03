@@ -688,34 +688,63 @@ class PrinterManager {
             lines.push('\x1D\x56\x00'); // CORTAR PAPEL
             lines.push('\x1B\x40');     // INICIALIZAR IMPRESORA
             lines.push('\x1D\x4C\x00\x00'); // MARGEN IZQUIERDO = 0
-            
-            lines.push(sep2);
-            lines.push(BOLD + this._center('DATOS PARA ENTREGA', W) + BOLD_OFF);
-            lines.push(this._center(data.mesa_nombre ? String(data.mesa_nombre).toUpperCase() : '', W));
-            lines.push(sep2);
-            lines.push('');
-            
-            if (data.cliente.nombre) {
-                lines.push(BOLD + 'Cliente: ' + BOLD_OFF + this._sanitize(data.cliente.nombre));
-            }
-            if (data.cliente.telefono) {
-                lines.push(BOLD + 'Telefono: ' + BOLD_OFF + this._sanitize(data.cliente.telefono));
-            }
-            if (data.cliente.direccion) {
-                lines.push(BOLD + 'Direccion: ' + BOLD_OFF + this._sanitize(data.cliente.direccion));
-            }
-            if (data.cliente.notas) {
-                lines.push(sep);
-                lines.push(BOLD + 'Notas:' + BOLD_OFF);
-                lines.push(this._sanitize(data.cliente.notas));
-            }
-            
-            lines.push('');
-            lines.push(sep2);
-            lines.push(this._footer());
+            lines.push(...this._formatDatosEntrega(data, W, sep, sep2, BOLD, BOLD_OFF));
         }
 
         return lines.join('\n');
+    }
+
+    // ══════════════════════════════════════════
+    // DATOS DE CLIENTE (Impresión Individual)
+    // ══════════════════════════════════════════
+    formatDatosCliente(data) {
+        const W = 48;
+        const sep = '-'.repeat(W);
+        const sep2 = '='.repeat(W);
+        const ESC = '\x1B';
+        const BOLD = ESC + '\x45\x01';
+        const BOLD_OFF = ESC + '\x45\x00';
+
+        const lines = [];
+        lines.push(this._header(data));
+        lines.push('');
+        if (data.cliente) {
+            lines.push(...this._formatDatosEntrega(data, W, sep, sep2, BOLD, BOLD_OFF));
+        } else {
+            lines.push(this._center('No hay datos de cliente.', W));
+            lines.push('');
+            lines.push(sep2);
+        }
+        lines.push(this._footer());
+        return lines.join('\n');
+    }
+
+    _formatDatosEntrega(data, W, sep, sep2, BOLD, BOLD_OFF) {
+        const lines = [];
+        lines.push(sep2);
+        lines.push(BOLD + this._center('DATOS PARA ENTREGA', W) + BOLD_OFF);
+        lines.push(this._center(data.mesa_nombre ? String(data.mesa_nombre).toUpperCase() : '', W));
+        lines.push(sep2);
+        lines.push('');
+
+        if (data.cliente.nombre) {
+            lines.push(BOLD + 'Cliente: ' + BOLD_OFF + this._sanitize(data.cliente.nombre));
+        }
+        if (data.cliente.telefono) {
+            lines.push(BOLD + 'Telefono: ' + BOLD_OFF + this._sanitize(data.cliente.telefono));
+        }
+        if (data.cliente.direccion) {
+            lines.push(BOLD + 'Direccion: ' + BOLD_OFF + this._sanitize(data.cliente.direccion));
+        }
+        if (data.cliente.notas) {
+            lines.push(sep);
+            lines.push(BOLD + 'Notas:' + BOLD_OFF);
+            lines.push(this._sanitize(data.cliente.notas));
+        }
+
+        lines.push('');
+        lines.push(sep2);
+        return lines;
     }
 
     // ══════════════════════════════════════════

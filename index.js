@@ -164,6 +164,17 @@ function connectWebSocket() {
         }
     });
 
+    // ── Escuchar impresión exclusiva de datos de cliente ──
+    socket.on('imprimir:datos-cliente', async (data) => {
+        try {
+            printerManager.log(`👤 Imprimiendo datos de cliente → ${data.mesa_nombre || 'Mesa ' + data.mesa_numero}`);
+            const text = printerManager.formatDatosCliente(data);
+            await printerManager.print('caja', text);
+        } catch (err) {
+            printerManager.log(`❌ Error imprimiendo datos cliente: ${err.message}`);
+        }
+    });
+
     // ── Escuchar cierre de caja → imprimir resumen ──
     socket.on('cierre:caja', async (data) => {
         try {
