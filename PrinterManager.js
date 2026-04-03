@@ -290,7 +290,8 @@ class PrinterManager {
         lines.push(sep2);
 
         // Info mesa
-        lines.push(`${BOLD}${payload.mesa_nombre || ('Mesa: ' + payload.mesa)}${BOLD_OFF}   Mesero: ${this._sanitize(payload.mesero || '')}`);
+        const mesaLabel = String(payload.mesa_nombre || ('Mesa: ' + payload.mesa)).toUpperCase();
+        lines.push(`${BOLD}${mesaLabel}${BOLD_OFF}   Mesero: ${this._sanitize(payload.mesero || '')}`);
         if (payload.comensales) lines.push(`Personas: ${payload.comensales}`);
         lines.push(`Fecha: ${fecha}   Hora: ${hora}`);
         lines.push(sep);
@@ -349,7 +350,8 @@ class PrinterManager {
         lines.push(sep2);
 
         // Info mesa
-        lines.push(`${BOLD}${payload.mesa_nombre || ('Mesa: ' + payload.mesa)}${BOLD_OFF}   Mesero: ${this._sanitize(payload.mesero || '')}`);
+        const mesaLabel = String(payload.mesa_nombre || ('Mesa: ' + payload.mesa)).toUpperCase();
+        lines.push(`${BOLD}${mesaLabel}${BOLD_OFF}   Mesero: ${this._sanitize(payload.mesero || '')}`);
         lines.push(`Fecha: ${fecha}   Hora: ${hora}`);
         lines.push(sep);
 
