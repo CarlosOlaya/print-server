@@ -475,11 +475,17 @@ class PrinterManager {
                     const vuni = this._rpad(fmt(precio), 8);
                     lines.push(`${cant}  ${nombre} ${vuni}       $0`);
                     lines.push(`      ** CORTESIA **`);
+                    if (item.motivo_descuento) {
+                        lines.push(`      Motivo: ${this._sanitize(item.motivo_descuento)}`);
+                    }
                 } else if (descPct > 0) {
                     const vuni = this._rpad(fmt(precio), 8);
                     const total = this._rpad(fmt(totalNeto), 8);
                     lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
                     lines.push(`      Dcto -${descPct}% (-$${fmt(descMonto)})`);
+                    if (item.motivo_descuento) {
+                        lines.push(`      Motivo: ${this._sanitize(item.motivo_descuento)}`);
+                    }
                 } else {
                     const vuni = this._rpad(fmt(precio), 8);
                     const total = this._rpad(fmt(totalBruto), 8);
@@ -493,6 +499,9 @@ class PrinterManager {
         lines.push(this._lr('SUBTOTAL:', `$${fmt(factura.subtotal)}`, W));
         if (factura.descuento_monto > 0) {
             lines.push(this._lr('DESCUENTO:', `-$${fmt(factura.descuento_monto)}`, W));
+            if (factura.motivo_descuento) {
+                lines.push(`  Motivo: ${this._sanitize(factura.motivo_descuento)}`);
+            }
         }
         if (factura.monto_iva > 0) {
             lines.push(this._lr('IVA:', `$${fmt(factura.monto_iva)}`, W));
@@ -622,12 +631,18 @@ class PrinterManager {
                     const vuni = this._rpad(fmt(precio), 8);
                     lines.push(`${cant}  ${nombre} ${vuni}       $0`);
                     lines.push(`      ** CORTESIA **`);
+                    if (item.motivo_descuento) {
+                        lines.push(`      Motivo: ${this._sanitize(item.motivo_descuento)}`);
+                    }
                 } else if (descPct > 0) {
                     // Descuento parcial
                     const vuni = this._rpad(fmt(precio), 8);
                     const total = this._rpad(fmt(totalNeto), 8);
                     lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
                     lines.push(`      Dcto -${descPct}% (-$${fmt(descMonto)})`);
+                    if (item.motivo_descuento) {
+                        lines.push(`      Motivo: ${this._sanitize(item.motivo_descuento)}`);
+                    }
                 } else {
                     // Sin descuento
                     const vuni = this._rpad(fmt(precio), 8);
@@ -644,6 +659,9 @@ class PrinterManager {
         // Detalle de cargos
         if (data.descuento_mesa > 0) {
             lines.push(this._lr('Descuento:', `-$${fmt(data.descuento_mesa)}`, W));
+            if (data.motivo_descuento) {
+                lines.push(`  Motivo: ${this._sanitize(data.motivo_descuento)}`);
+            }
         }
         // Propina sugerida
         const esDelivery = data.mesa_nombre && /domicilio|llevar/i.test(data.mesa_nombre);
