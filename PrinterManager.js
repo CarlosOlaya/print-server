@@ -475,21 +475,29 @@ class PrinterManager {
                     const vuni = this._rpad(fmt(precio), 8);
                     lines.push(`${cant}  ${nombre} ${vuni}       $0`);
                     lines.push(`      ** CORTESIA **`);
-                    if (item.motivo_descuento) {
-                        lines.push(`      Motivo: ${this._sanitize(item.motivo_descuento)}`);
+                    // Busca motivo_descuento (nuevo) o comentario (legacy)
+                    const motivoCort = item.motivo_descuento || item.comentario;
+                    if (motivoCort) {
+                        lines.push(`      Motivo: ${this._sanitize(motivoCort)}`);
                     }
                 } else if (descPct > 0) {
                     const vuni = this._rpad(fmt(precio), 8);
                     const total = this._rpad(fmt(totalNeto), 8);
                     lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
                     lines.push(`      Dcto -${descPct}% (-$${fmt(descMonto)})`);
-                    if (item.motivo_descuento) {
-                        lines.push(`      Motivo: ${this._sanitize(item.motivo_descuento)}`);
+                    // Busca motivo_descuento (nuevo) o comentario (legacy)
+                    const motivoDcto = item.motivo_descuento || item.comentario;
+                    if (motivoDcto) {
+                        lines.push(`      Motivo: ${this._sanitize(motivoDcto)}`);
                     }
                 } else {
                     const vuni = this._rpad(fmt(precio), 8);
                     const total = this._rpad(fmt(totalBruto), 8);
                     lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
+                    // Comentario en tirilla (ej: 'sin cebolla') sin descuento
+                    if (item.comentario && !item.motivo_descuento) {
+                        lines.push(`      > ${this._sanitize(item.comentario)}`);
+                    }
                 }
             });
             lines.push(sep);
@@ -631,8 +639,9 @@ class PrinterManager {
                     const vuni = this._rpad(fmt(precio), 8);
                     lines.push(`${cant}  ${nombre} ${vuni}       $0`);
                     lines.push(`      ** CORTESIA **`);
-                    if (item.motivo_descuento) {
-                        lines.push(`      Motivo: ${this._sanitize(item.motivo_descuento)}`);
+                    const motivoCort = item.motivo_descuento || item.comentario;
+                    if (motivoCort) {
+                        lines.push(`      Motivo: ${this._sanitize(motivoCort)}`);
                     }
                 } else if (descPct > 0) {
                     // Descuento parcial
@@ -640,14 +649,18 @@ class PrinterManager {
                     const total = this._rpad(fmt(totalNeto), 8);
                     lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
                     lines.push(`      Dcto -${descPct}% (-$${fmt(descMonto)})`);
-                    if (item.motivo_descuento) {
-                        lines.push(`      Motivo: ${this._sanitize(item.motivo_descuento)}`);
+                    const motivoDcto = item.motivo_descuento || item.comentario;
+                    if (motivoDcto) {
+                        lines.push(`      Motivo: ${this._sanitize(motivoDcto)}`);
                     }
                 } else {
                     // Sin descuento
                     const vuni = this._rpad(fmt(precio), 8);
                     const total = this._rpad(fmt(totalBruto), 8);
                     lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
+                    if (item.comentario && !item.motivo_descuento) {
+                        lines.push(`      > ${this._sanitize(item.comentario)}`);
+                    }
                 }
             });
             lines.push(sep);
@@ -952,10 +965,11 @@ class PrinterManager {
                     lines.push(`  >> ${this._sanitize(f.motivo_anulacion)}`);
                 }
             } else if (tipo === 'nc') {
-                const total = ('-$' + fmt(f.total)).padStart(14, ' ');
-                lines.push(`[NA]      N/A               ${total}`);
+                // NA (Nota de Ajuste) = referencia contable, NO es pérdida
+                const monto = ('Ref. $' + fmt(f.total)).padStart(14, ' ');
+                lines.push(`[NA]      Nota de Ajuste    ${monto}`);
                 if (f.nota_credito && f.nota_credito.numero) {
-                    lines.push(`  >> ${f.nota_credito.numero}`);
+                    lines.push(`  >> ${f.nota_credito.numero}: ${this._sanitize(f.nota_credito.motivo || 'ajuste')}`);
                 }
             } else {
                 const metodo = this._sanitize((f.metodo_pago || '')).substring(0, 18).padEnd(18, ' ');
