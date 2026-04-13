@@ -270,7 +270,7 @@ class PrinterManager {
     // ══════════════════════════════════════════
     formatComanda(payload) {
         if (payload.tipo_comanda === 'anulacion') {
-            return this.formatComandaAnulacion(payload);
+                return this.formatComandaAnulacion(payload);
         }
 
         const ESC = '\x1B';
