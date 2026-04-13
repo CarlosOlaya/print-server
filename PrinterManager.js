@@ -274,16 +274,21 @@ class PrinterManager {
         }
 
         const ESC = '\x1B';
-        const BOLD = ESC + '\x45\x01';
+        const BOLD     = ESC + '\x45\x01';
         const BOLD_OFF = ESC + '\x45\x00';
 
         const W = 48;
         const lines = [];
-        const sep = '-'.repeat(W);
+        const sep  = '-'.repeat(W);
         const sep2 = '='.repeat(W);
-        const now = new Date();
+        const now  = new Date();
         const fecha = this._fechaSimple(now);
-        const hora = payload.hora ? this._sanitize(String(payload.hora)) : this._horaSimple(now);
+        const hora  = payload.hora ? this._sanitize(String(payload.hora)) : this._horaSimple(now);
+
+        // Padding superior
+        lines.push('');
+        lines.push('');
+        lines.push('');
 
         // Header
         lines.push(this._center(`COMANDA #${payload.comanda} | ${this._sanitize((payload.area || '').toUpperCase())}`, W));
@@ -309,16 +314,15 @@ class PrinterManager {
             // Nombre + cantidad en negrita
             lines.push(BOLD + `${cant}  ${nombreTrunc}` + BOLD_OFF);
 
-            // Comentario en texto normal, indentado
             if (item.comentario) {
                 lines.push(`      > ${this._sanitize(item.comentario)}`);
             }
 
-            // Línea en blanco entre items
             lines.push('');
         });
 
         lines.push(sep2);
+        lines.push('');
         lines.push('');
         lines.push('');
         lines.push('');
@@ -331,17 +335,22 @@ class PrinterManager {
     // ══════════════════════════════════════════
     formatComandaAnulacion(payload) {
         const ESC = '\x1B';
-        const BOLD = ESC + '\x45\x01';
+        const BOLD     = ESC + '\x45\x01';
         const BOLD_OFF = ESC + '\x45\x00';
 
         const W = 48;
         const lines = [];
-        const sep = '-'.repeat(W);
+        const sep  = '-'.repeat(W);
         const sep2 = '='.repeat(W);
         const sepX = 'X'.repeat(W);
-        const now = new Date();
+        const now  = new Date();
         const fecha = this._fechaSimple(now);
-        const hora = payload.hora ? this._sanitize(String(payload.hora)) : this._horaSimple(now);
+        const hora  = payload.hora ? this._sanitize(String(payload.hora)) : this._horaSimple(now);
+
+        // Padding superior
+        lines.push('');
+        lines.push('');
+        lines.push('');
 
         // Header ANULACIÓN
         lines.push(sep2);
@@ -383,6 +392,7 @@ class PrinterManager {
         lines.push(sepX);
         lines.push(BOLD + this._center('** ANULADO **', W) + BOLD_OFF);
         lines.push(sepX);
+        lines.push('');
         lines.push('');
         lines.push('');
         lines.push('');
@@ -504,12 +514,18 @@ class PrinterManager {
         }
 
         // ── Totales ──
-        lines.push(this._lr('SUBTOTAL:', `$${fmt(factura.subtotal)}`, W));
         if (factura.descuento_monto > 0) {
-            lines.push(this._lr('DESCUENTO:', `-$${fmt(factura.descuento_monto)}`, W));
+            // Reconstruir el bruto pre-descuento-mesa para que la línea tenga sentido:
+            // subtotal del payload YA tiene el descuento aplicado, así que sumamos para mostrar el original.
+            const subtotalBruto = Number(factura.subtotal) + Number(factura.descuento_monto);
+            lines.push(this._lr('SUBTOTAL:', `$${fmt(subtotalBruto)}`, W));
+            lines.push(this._lr('DCTO. MESA:', `-$${fmt(factura.descuento_monto)}`, W));
             if (factura.motivo_descuento) {
                 lines.push(`  Motivo: ${this._sanitize(factura.motivo_descuento)}`);
             }
+            lines.push(this._lr('NETO:', `$${fmt(factura.subtotal)}`, W));
+        } else {
+            lines.push(this._lr('SUBTOTAL:', `$${fmt(factura.subtotal)}`, W));
         }
         if (factura.monto_iva > 0) {
             lines.push(this._lr('IVA:', `$${fmt(factura.monto_iva)}`, W));
