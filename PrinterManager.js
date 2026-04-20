@@ -514,14 +514,25 @@ class PrinterManager {
         }
 
         // ── Totales ──
-        if (factura.descuento_monto > 0) {
-            // Reconstruir el bruto pre-descuento-mesa para que la línea tenga sentido:
-            // subtotal del payload YA tiene el descuento aplicado, así que sumamos para mostrar el original.
-            const subtotalBruto = Number(factura.subtotal) + Number(factura.descuento_monto);
-            lines.push(this._lr('SUBTOTAL:', `$${fmt(subtotalBruto)}`, W));
-            lines.push(this._lr('DCTO. MESA:', `-$${fmt(factura.descuento_monto)}`, W));
-            if (factura.motivo_descuento) {
-                lines.push(`  Motivo: ${this._sanitize(factura.motivo_descuento)}`);
+        // Usar bruto del payload (disponible desde el fix contable enterprise)
+        // Fallback retro-compatible: reconstruir si el payload es legacy
+        const brutoFact = Number(factura.bruto) ||
+            (Number(factura.subtotal) + Number(factura.descuento_items || 0) + Number(factura.descuento_monto || 0));
+        const descItemsFact = Number(factura.descuento_items) || 0;
+        const descMesaFact  = Number(factura.descuento_monto)  || 0;
+        const hayDescFact   = descItemsFact > 0 || descMesaFact > 0;
+
+        if (hayDescFact) {
+            // Desglose contable: Subtotal → Desc.Items → Desc.Mesa → Neto
+            lines.push(this._lr('SUBTOTAL:', `$${fmt(brutoFact)}`, W));
+            if (descItemsFact > 0) {
+                lines.push(this._lr('DESC. ITEMS:', `-$${fmt(descItemsFact)}`, W));
+            }
+            if (descMesaFact > 0) {
+                lines.push(this._lr('DESC. MESA:', `-$${fmt(descMesaFact)}`, W));
+                if (factura.motivo_descuento) {
+                    lines.push(`  Motivo: ${this._sanitize(factura.motivo_descuento)}`);
+                }
             }
             lines.push(this._lr('NETO:', `$${fmt(factura.subtotal)}`, W));
         } else {
@@ -682,15 +693,29 @@ class PrinterManager {
             lines.push(sep);
         }
 
-        // Subtotal
-        lines.push(this._lr('SUBTOTAL:', `$${fmt(data.subtotal)}`, W));
+        // ── Totales (desglose contable correcto) ──
+        // bruto del payload (disponible desde fix enterprise); fallback retro-compatible
+        const brutoPre = Number(data.bruto) ||
+            (Number(data.subtotal) + Number(data.descuento_items || 0) + Number(data.descuento_mesa || 0));
+        const descItemsPre = Number(data.descuento_items) || 0;
+        const descMesaPre  = Number(data.descuento_mesa)   || 0;
+        const hayDescPre   = descItemsPre > 0 || descMesaPre > 0;
 
-        // Detalle de cargos
-        if (data.descuento_mesa > 0) {
-            lines.push(this._lr('Descuento:', `-$${fmt(data.descuento_mesa)}`, W));
-            if (data.motivo_descuento) {
-                lines.push(`  Motivo: ${this._sanitize(data.motivo_descuento)}`);
+        if (hayDescPre) {
+            // Flujo: Subtotal bruto → DESC.ITEMS → DESC.MESA → NETO
+            lines.push(this._lr('SUBTOTAL:', `$${fmt(brutoPre)}`, W));
+            if (descItemsPre > 0) {
+                lines.push(this._lr('DESC. ITEMS:', `-$${fmt(descItemsPre)}`, W));
             }
+            if (descMesaPre > 0) {
+                lines.push(this._lr('DESC. MESA:', `-$${fmt(descMesaPre)}`, W));
+                if (data.motivo_descuento) {
+                    lines.push(`  Motivo: ${this._sanitize(data.motivo_descuento)}`);
+                }
+            }
+            lines.push(this._lr('NETO:', `$${fmt(data.subtotal)}`, W));
+        } else {
+            lines.push(this._lr('SUBTOTAL:', `$${fmt(data.subtotal)}`, W));
         }
         // Propina sugerida
         const esDelivery = data.mesa_nombre && /domicilio|llevar/i.test(data.mesa_nombre);
