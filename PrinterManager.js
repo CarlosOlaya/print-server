@@ -625,12 +625,15 @@ class PrinterManager {
         const hora = this._horaSimple(now);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
 
-        // Header
-        lines.push(sep);
-        lines.push(this._center('VERIFICACION DE PEDIDO', W));
+        // Header — info del restaurante (esta tirilla va al cliente)
         if (data.tenant_nombre) {
             lines.push(this._center(data.tenant_nombre.toUpperCase(), W));
         }
+        if (data.nit) lines.push(this._center(`NIT: ${data.nit}`, W));
+        if (data.telefono) lines.push(this._center(`Tel: ${this._sanitize(data.telefono)}`, W));
+        if (data.direccion) lines.push(this._center(this._sanitize(data.direccion), W));
+        lines.push(sep);
+        lines.push(this._center('VERIFICACION DE PEDIDO', W));
         lines.push(sep);
 
         // Info
@@ -730,8 +733,8 @@ class PrinterManager {
 
         lines.push(sep2);
         lines.push('');
-        lines.push(this._center('** SOLO PARA CONTROL INTERNO **', W));
-        lines.push(this._center('Documento de verificacion', W));
+        lines.push(this._center('Documento no fiscal - verificacion', W));
+        lines.push(this._center('Gracias por su visita!', W));
         lines.push(this._footer());
 
         // ── SEGUNDA TIRILLA: DATOS DE CLIENTE (DOMICILIO/LLEVAR) ──
@@ -890,6 +893,22 @@ class PrinterManager {
             lines.push('');
         }
 
+        // ── Egresos / Gastos (si el módulo está activo y hay gastos) ──
+        const gastos = data.gastos;
+        if (gastos && gastos.total > 0) {
+            lines.push(BOLD + 'EGRESOS DEL TURNO' + BOLD_OFF);
+            lines.push(sep);
+            if (gastos.por_metodo && gastos.por_metodo.length > 0) {
+                for (const gm of gastos.por_metodo) {
+                    const label = (gm.metodo || 'efectivo').charAt(0).toUpperCase() + (gm.metodo || 'efectivo').slice(1);
+                    lines.push(this._lr(`  ${label}:`, `-$${fmt(gm.total)}`, W));
+                }
+            }
+            lines.push(sep);
+            lines.push(BOLD + this._lr('TOTAL EGRESOS:', `-$${fmt(gastos.total)}`, W) + BOLD_OFF);
+            lines.push('');
+        }
+
         // ── Resumen efectivo ──
         lines.push(sep2);
         lines.push(BOLD + 'RESUMEN EFECTIVO' + BOLD_OFF);
@@ -897,6 +916,11 @@ class PrinterManager {
         lines.push(this._lr('Inicial:', `$${fmt(data.efectivo_inicial)}`, W));
         lines.push(this._lr('+ Ventas:', `$${fmt(data.total_efectivo)}`, W));
         lines.push(this._lr('+ Propinas:', `$${fmt(data.propina_efectivo)}`, W));
+        // Gastos en efectivo (si hay)
+        const gastosEf = gastos?.por_metodo?.find(m => m.metodo === 'efectivo')?.total || 0;
+        if (gastosEf > 0) {
+            lines.push(this._lr('- Egresos:', `-$${fmt(gastosEf)}`, W));
+        }
         lines.push(sep);
         lines.push(BOLD + this._lr('Esperado:', `$${fmt(data.efectivo_esperado)}`, W) + BOLD_OFF);
         lines.push(this._lr('Contado:', `$${fmt(data.efectivo_contado)}`, W));
@@ -1023,6 +1047,79 @@ class PrinterManager {
         const totalIng = (Number(data.total_ventas) || 0) + (Number(data.total_propinas) || 0);
         lines.push(sep);
         lines.push(BOLD + this._lr('TOTAL INGRESO:', `$${fmt(data.total_ingreso || totalIng)}`, W) + BOLD_OFF);
+        lines.push(sep2);
+        lines.push('');
+        lines.push(this._center('** SOLO PARA CONTROL INTERNO **', W));
+        lines.push(this._footer());
+
+        return lines.join('\n');
+    }
+
+    // ══════════════════════════════════════════════════════
+    // EGRESOS DEL TURNO — Tirilla dedicada de gastos
+    // ══════════════════════════════════════════════════════
+    formatGastosTurno(data) {
+        const ESC = '\x1B';
+        const BOLD = ESC + '\x45\x01';
+        const BOLD_OFF = ESC + '\x45\x00';
+
+        const W = 48;
+        const lines = [];
+        const sep = '-'.repeat(W);
+        const sep2 = '='.repeat(W);
+        const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
+
+        const gastos = data.gastos;
+        if (!gastos || !gastos.items || gastos.items.length === 0) {
+            return null; // No imprimir si no hay gastos
+        }
+
+        // ── Header ──
+        if (data.tenant_nombre) {
+            lines.push(this._center(this._sanitize(data.tenant_nombre.toUpperCase()), W));
+        }
+        lines.push(sep2);
+        lines.push(BOLD + this._center('EGRESOS DEL TURNO', W) + BOLD_OFF);
+        lines.push(sep2);
+
+        // ── Info del turno ──
+        lines.push(this._lr('Cajero:', this._sanitize(data.cajero || ''), W));
+        lines.push(this._lr('Cierre:', this._fechaHoraSimple(new Date(data.fecha_cierre || Date.now())), W));
+        lines.push(sep);
+
+        // ── Listado de gastos ──
+        lines.push('CONCEPTO                          METODO  MONTO');
+        lines.push(sep);
+
+        for (const g of gastos.items) {
+            const concepto = this._sanitize(g.concepto || '').substring(0, 30).padEnd(30, ' ');
+            const metodo = (g.metodo_pago || 'efec').substring(0, 7).padEnd(7, ' ');
+            const monto = `$${fmt(g.monto)}`;
+            lines.push(`${concepto} ${metodo} ${monto}`);
+            if (g.proveedor && g.proveedor.nombre) {
+                lines.push(`  Prov: ${this._sanitize(g.proveedor.nombre)}`);
+            }
+            if (g.observacion) {
+                lines.push(`  Obs: ${this._sanitize(g.observacion)}`);
+            }
+        }
+
+        lines.push(sep);
+
+        // ── Desglose por método ──
+        if (gastos.por_metodo && gastos.por_metodo.length > 0) {
+            lines.push(BOLD + 'DESGLOSE POR METODO' + BOLD_OFF);
+            lines.push(sep);
+            for (const gm of gastos.por_metodo) {
+                const label = (gm.metodo || 'efectivo').charAt(0).toUpperCase() + (gm.metodo || 'efectivo').slice(1);
+                lines.push(this._lr(`  ${label}:`, `-$${fmt(gm.total)}`, W));
+            }
+            lines.push(sep);
+        }
+
+        // ── Total ──
+        lines.push(sep2);
+        lines.push(BOLD + this._lr('TOTAL EGRESOS:', `-$${fmt(gastos.total)}`, W) + BOLD_OFF);
         lines.push(sep2);
         lines.push('');
         lines.push(this._center('** SOLO PARA CONTROL INTERNO **', W));
@@ -1188,7 +1285,7 @@ class PrinterManager {
         const W = 48;
         const lines = [];
         lines.push('');
-        lines.push(this._center('Sistema de gestion', W));
+        lines.push(this._center('Desarrollado por www.foodly.com.co', W));
         // Espacio amplio para que la impresora térmica
         // avance lo suficiente antes de cortar y no
         // pierda el footer. Equivale a ~5 líneas en blanco.
@@ -1264,6 +1361,8 @@ class PrinterManager {
     // ══════════════════════════════════════════
     // NOTA DE AJUSTE — Documento de anulacion
     // ══════════════════════════════════════════
+    // Formato identico a un PED, con header de NC
+    // y motivo de anulacion al final.
     formatNotaCredito(data) {
         const ESC = '\x1B';
         const BOLD = ESC + '\x45\x01';
@@ -1275,8 +1374,16 @@ class PrinterManager {
         const sep2 = '='.repeat(W);
         const fmt = (n) => (Number(n) || 0).toLocaleString('es-CO');
         const now = new Date();
+        const fecha = this._fechaSimple(now);
+        const hora = this._horaSimple(now);
 
-        // ── Header ──
+        const det = data.detalle || {};
+
+        // ── Header: restaurante ──
+        if (data.tenant_nombre) {
+            lines.push(this._center(data.tenant_nombre.toUpperCase(), W));
+        }
+        if (data.nit) lines.push(this._center(`NIT: ${data.nit}`, W));
         lines.push(sep2);
         lines.push(BOLD + this._center('*** NOTA DE AJUSTE ***', W) + BOLD_OFF);
         if (data.numero_nota) {
@@ -1284,43 +1391,137 @@ class PrinterManager {
         }
         lines.push(sep2);
 
-        // ── Info ──
-        lines.push(this._lr('Tipo:', (data.tipo || 'total').toUpperCase(), W));
+        // ── Info del pedido anulado ──
         lines.push(this._lr('Pedido anulado:', data.factura_original || '', W));
-        if (data.mesa_nombre) lines.push(this._lr('Destino:', data.mesa_nombre, W));
-        else if (data.mesa_numero) lines.push(this._lr('Mesa destino:', String(data.mesa_numero), W));
-        if (data.mesero) lines.push(this._lr('Mesero:', this._sanitize(data.mesero), W));
-        lines.push(this._lr('Fecha:', this._fechaSimple(now), W));
-        lines.push(this._lr('Hora:', this._horaSimple(now), W));
+        lines.push(`Fecha: ${fecha}        Hora: ${hora}`);
+        lines.push(`${data.mesa_nombre || ('Mesa: ' + (data.mesa_numero || ''))}`);
+        if (data.mesero) lines.push(`Mesero: ${this._sanitize(data.mesero)}`);
         lines.push(sep);
 
-        // ── Items del pedido original ──
-        const det = data.detalle || {};
+        // ── Tabla de items (misma que PED) ──
         if (det.items_anulados && det.items_anulados.length > 0) {
-            lines.push(BOLD + 'ITEMS DEL PEDIDO ORIGINAL' + BOLD_OFF);
+            lines.push('CANT  PRODUCTO                V.UNI    TOTAL');
             lines.push(sep);
             for (const item of det.items_anulados) {
-                const total = item.cantidad * item.precio_unitario;
-                const nombre = this._sanitize((item.plato_nombre || '').substring(0, 28));
-                lines.push(BOLD + `${nombre}` + BOLD_OFF);
-                lines.push(this._lr(`  ${item.cantidad} x $${fmt(item.precio_unitario)}`, `$${fmt(total)}`, W));
+                const cant = String(item.cantidad || 1).padStart(3, ' ');
+                const nombre = (item.plato_nombre || '').substring(0, 22).padEnd(22, ' ');
+                const precio = Number(item.precio_unitario) || 0;
+                const cantNum = Number(item.cantidad) || 1;
+                const descPct = Number(item.descuento_porcentaje) || 0;
+                const descMonto = Number(item.descuento_monto) || 0;
+                const totalBruto = precio * cantNum;
+                const totalNeto = totalBruto - descMonto;
+                const esCortesia = Boolean(item.es_cortesia);
+
+                if (esCortesia) {
+                    const vuni = this._rpad(fmt(precio), 8);
+                    lines.push(`${cant}  ${nombre} ${vuni}       $0`);
+                    lines.push(`      ** CORTESIA **`);
+                    const motivoCort = item.motivo_descuento || item.comentario;
+                    if (motivoCort) {
+                        lines.push(`      Motivo: ${this._sanitize(motivoCort)}`);
+                    }
+                } else if (descPct > 0) {
+                    const vuni = this._rpad(fmt(precio), 8);
+                    const total = this._rpad(fmt(totalNeto), 8);
+                    lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
+                    lines.push(`      Dcto -${descPct}% (-$${fmt(descMonto)})`);
+                    const motivoDcto = item.motivo_descuento || item.comentario;
+                    if (motivoDcto) {
+                        lines.push(`      Motivo: ${this._sanitize(motivoDcto)}`);
+                    }
+                } else {
+                    const vuni = this._rpad(fmt(precio), 8);
+                    const total = this._rpad(fmt(totalBruto), 8);
+                    lines.push(`${cant}  ${nombre} ${vuni} ${total}`);
+                    if (item.comentario && !item.motivo_descuento) {
+                        lines.push(`      > ${this._sanitize(item.comentario)}`);
+                    }
+                }
             }
             lines.push(sep);
         }
 
-        // ── Totales ──
-        if (det.subtotal_original) lines.push(this._lr('Subtotal original:', `$${fmt(det.subtotal_original)}`, W));
-        if (det.servicio_original) lines.push(this._lr('Servicio original:', `$${fmt(det.servicio_original)}`, W));
-        lines.push(sep);
-        lines.push(BOLD + this._lr('MONTO ANULADO:', `$${fmt(data.monto_anulado)}`, W) + BOLD_OFF);
+        // ── Totales (mismos que PED) ──
+        const subtotalOrig = Number(det.subtotal_original) || 0;
+        const descMesaMonto = Number(det.descuento_monto_mesa) || 0;
+        const subtotalVisible = subtotalOrig + descMesaMonto;
+
+        lines.push(this._lr('SUBTOTAL:', `$${fmt(subtotalVisible)}`, W));
+        if (descMesaMonto > 0) {
+            const descMesaPct = Number(det.descuento_porcentaje_mesa) || 0;
+            const descLabel = descMesaPct > 0 ? `DESC. MESA (${descMesaPct}%):` : 'DESC. MESA:';
+            lines.push(this._lr(descLabel, `-$${fmt(descMesaMonto)}`, W));
+            if (det.motivo_descuento) {
+                lines.push(`  Motivo: ${this._sanitize(det.motivo_descuento)}`);
+            }
+            lines.push(this._lr('NETO:', `$${fmt(subtotalOrig)}`, W));
+        }
+        if (det.monto_iva_original > 0) {
+            lines.push(this._lr('IVA:', `$${fmt(det.monto_iva_original)}`, W));
+        }
+        if (det.servicio_original > 0) {
+            lines.push(this._lr('SERVICIO:', `$${fmt(det.servicio_original)}`, W));
+        }
+        lines.push(sep2);
+        lines.push(BOLD + this._lr('TOTAL ANULADO:', `$ ${fmt(data.monto_anulado)}`, W) + BOLD_OFF);
+        lines.push(sep2);
+
+        // ── Formas de pago originales ──
+        const metodoLabels = {
+            efectivo: 'Efectivo', tarjeta: 'Tarjeta', datafono: 'Tarjeta',
+            transferencia: 'Transferencia', nequi: 'Nequi', daviplata: 'Daviplata',
+            bold: 'Bold', rappi_pay: 'Rappi Pay', pse: 'PSE',
+            bonos: 'Bonos', credito: 'Credito', mixto: 'Mixto',
+        };
+        const labelMetodo = (m) => {
+            const key = (m || '').toLowerCase();
+            if (key.includes('+')) {
+                return key.split('+').map(k => metodoLabels[k] || k).join(' + ');
+            }
+            return metodoLabels[key] || m || 'Efectivo';
+        };
+
+        const pagos = det.pagos || [];
+        if (pagos.length > 1) {
+            lines.push(this._center('FORMAS DE PAGO (DIVIDIDO)', W));
+            lines.push(sep);
+            for (const p of pagos) {
+                const metodoLabel = labelMetodo(p.metodo);
+                const monto = Number(p.monto) || 0;
+                const propina = Number(p.propina) || 0;
+                lines.push(metodoLabel + ':');
+                lines.push(this._lr('  Subtotal:', `$${fmt(monto)}`, W));
+                if (propina > 0) {
+                    lines.push(this._lr('  + Servicio:', `$${fmt(propina)}`, W));
+                }
+                lines.push(this._lr('  Total metodo:', `$${fmt(monto + propina)}`, W));
+                lines.push(sep);
+            }
+        } else if (pagos.length === 1) {
+            lines.push(this._center('FORMA DE PAGO', W));
+            lines.push(sep);
+            const p = pagos[0];
+            lines.push(this._lr(labelMetodo(p.metodo) + ':', `$${fmt(p.monto)}`, W));
+            if (Number(p.propina) > 0) {
+                lines.push(this._lr('  + Servicio:', `$${fmt(p.propina)}`, W));
+            }
+        } else if (det.metodo_pago) {
+            lines.push(this._center('FORMA DE PAGO', W));
+            lines.push(sep);
+            lines.push(this._lr(labelMetodo(det.metodo_pago) + ':', `$${fmt(data.monto_anulado)}`, W));
+        }
+
+        // ── Motivo de anulacion ──
         lines.push(sep2);
         lines.push('');
-        lines.push(BOLD + `Motivo: ${this._sanitize(data.motivo || 'No especificado')}` + BOLD_OFF);
+        lines.push(BOLD + 'MOTIVO DE ANULACION:' + BOLD_OFF);
+        lines.push(this._sanitize(data.motivo || 'No especificado'));
+        lines.push('');
         lines.push(sep2);
         lines.push('');
-        lines.push(this._center('DOCUMENTO DE CONTROL', W));
+        lines.push(this._center('** SOLO PARA CONTROL INTERNO **', W));
         lines.push(this._center('Nota de Ajuste - Conservar', W));
-        lines.push(this._center('para registros internos', W));
         lines.push(this._footer());
 
         return lines.join('\n');

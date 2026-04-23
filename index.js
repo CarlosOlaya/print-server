@@ -181,6 +181,15 @@ function connectWebSocket() {
             printerManager.log(`📊 Cierre de caja → ${data.cajero}`);
             const text = printerManager.formatCierreCaja(data);
             await printerManager.print('caja', text);
+
+            // ── Tirilla de gastos (si hay egresos en el turno) ──
+            if (data.gastos && data.gastos.items && data.gastos.items.length > 0) {
+                const gastosText = printerManager.formatGastosTurno(data);
+                if (gastosText) {
+                    printerManager.log(`💸 Egresos del turno → ${data.gastos.items.length} gastos`);
+                    await printerManager.print('caja', gastosText);
+                }
+            }
         } catch (err) {
             printerManager.log(`❌ Error imprimiendo cierre: ${err.message}`);
         }
@@ -370,7 +379,7 @@ app.post('/test-print/:area', async (req, res) => {
         '  Si ves esto, la impresora',
         '  esta correctamente configurada!',
         '',
-        '     Sistema de gestion',
+        '     Desarrollado por www.foodly.com.co',
         '', '', '', '', '', '',
     ].join('\n');
 
