@@ -13,6 +13,8 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const PrinterManager = require('./PrinterManager');
+const http = require('http');
+const https = require('https');
 
 // ============================================================
 // COLA LOCAL DE IMPRESIÓN — Reintentos cuando la impresora falla
@@ -338,8 +340,11 @@ async function handleNuevaComanda(data) {
     const area = normalizeArea(rawArea);
     const esAnulacion = data.tipo_comanda === 'anulacion' || payload.tipo_comanda === 'anulacion';
 
-    // ── PASO 1: ACK — Confirmar recepción (pendiente → recibida) ──
-    await markAsReceived(data.id, data.numero_comanda);
+    // ── PASO 1: ACK — fire-and-forget (NUNCA bloquea impresión) ──
+    apiPatch(`/api/v1/comandas/ps/${data.id}/recibida`).then(
+        () => printerManager.log(`📩 Comanda #${data.numero_comanda} → ACK recibida`),
+        () => {} // silenciar error — no es crítico
+    );
 
     // formatComanda detecta automáticamente tipo_comanda y usa el formato correcto
     const text = printerManager.formatComanda(payload);
@@ -348,7 +353,14 @@ async function handleNuevaComanda(data) {
     const success = await printerManager.print(area, text);
 
     if (success) {
-        await markAsPrinted(data.id, data.numero_comanda, esAnulacion);
+        // Fire-and-forget — no bloquea
+        apiPatch(`/api/v1/comandas/ps/${data.id}/impresa`).then(
+            () => {
+                const label = esAnulacion ? 'Anulación' : 'Comanda';
+                printerManager.log(`✅ ${label} #${data.numero_comanda} marcada como impresa`);
+            },
+            () => {} // silenciar
+        );
     } else {
         // ── PASO 2b: COLA LOCAL — La impresora falló, guardar para reintento ──
         const label = esAnulacion ? 'Anulación' : 'Comanda';
@@ -365,33 +377,55 @@ async function handleNuevaComanda(data) {
     }
 }
 
-async function markAsReceived(comandaId, numeroComanda) {
-    if (!comandaId) return;
-    try {
-        await fetch(`${config.api_url}/api/v1/comandas/ps/${comandaId}/recibida`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-        });
-        printerManager.log(`📩 Comanda #${numeroComanda} → ACK recibida`);
-    } catch (err) {
-        printerManager.log(`⚠️ No se pudo confirmar recepción: ${err.message}`);
-    }
+/**
+ * Helper: PATCH a la API usando módulo nativo http/https.
+ * Compatible con cualquier versión de Node.js.
+ * Retorna una Promise que se resuelve cuando la petición termina.
+ */
+function apiPatch(path) {
+    return new Promise((resolve, reject) => {
+        if (!config.api_url) return reject(new Error('No api_url'));
+        try {
+            const url = new URL(path, config.api_url);
+            const mod = url.protocol === 'https:' ? https : http;
+            const req = mod.request(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' } }, (res) => {
+                res.resume(); // consumir respuesta
+                resolve(res.statusCode);
+            });
+            req.on('error', reject);
+            req.setTimeout(5000, () => { req.destroy(); reject(new Error('timeout')); });
+            req.end();
+        } catch (err) {
+            reject(err);
+        }
+    });
 }
 
-async function markAsPrinted(comandaId, numeroComanda, esAnulacion = false) {
-    if (!comandaId) return;
-    try {
-        const response = await fetch(`${config.api_url}/api/v1/comandas/ps/${comandaId}/impresa`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-        });
-        if (response.ok) {
-            const label = esAnulacion ? 'Anulación' : 'Comanda';
-            printerManager.log(`✅ ${label} #${numeroComanda} marcada como impresa`);
+/**
+ * Helper: GET a la API usando módulo nativo http/https.
+ * Retorna el body parseado como JSON.
+ */
+function apiGet(path) {
+    return new Promise((resolve, reject) => {
+        if (!config.api_url) return reject(new Error('No api_url'));
+        try {
+            const url = new URL(path, config.api_url);
+            const mod = url.protocol === 'https:' ? https : http;
+            const req = mod.request(url, { method: 'GET' }, (res) => {
+                let body = '';
+                res.on('data', chunk => body += chunk);
+                res.on('end', () => {
+                    try { resolve({ status: res.statusCode, data: JSON.parse(body) }); }
+                    catch { resolve({ status: res.statusCode, data: {} }); }
+                });
+            });
+            req.on('error', reject);
+            req.setTimeout(10000, () => { req.destroy(); reject(new Error('timeout')); });
+            req.end();
+        } catch (err) {
+            reject(err);
         }
-    } catch (err) {
-        printerManager.log(`⚠️ No se pudo marcar como impresa: ${err.message}`);
-    }
+    });
 }
 
 // ============================================================
@@ -401,13 +435,13 @@ async function syncPendingPrints() {
     if (!config.tenant_id) return;
     try {
         printerManager.log('🔄 Sincronizando comandas pendientes...');
-        const url = `${config.api_url}/api/v1/comandas/ps/pendientes?tenantId=${encodeURIComponent(config.tenant_id)}`;
-        const response = await fetch(url);
-        if (!response.ok) {
-            printerManager.log(`⚠️ Sync falló: HTTP ${response.status}`);
+        const path = `/api/v1/comandas/ps/pendientes?tenantId=${encodeURIComponent(config.tenant_id)}`;
+        const { status, data } = await apiGet(path);
+        if (status !== 200) {
+            printerManager.log(`⚠️ Sync falló: HTTP ${status}`);
             return;
         }
-        const { comandas = [] } = await response.json();
+        const comandas = data.comandas || [];
         if (comandas.length === 0) {
             printerManager.log('✅ Sin comandas pendientes — todo al día');
             return;
@@ -452,7 +486,7 @@ setInterval(async () => {
         const success = await printerManager.print(job.area, job.text);
         if (success) {
             printerManager.log(`✅ Cola: Comanda #${job.numero_comanda} → ${job.area} impresa`);
-            await markAsPrinted(job.comanda_id, job.numero_comanda, job.esAnulacion);
+            apiPatch(`/api/v1/comandas/ps/${job.comanda_id}/impresa`).catch(() => {});
             removeFromQueue(i);
             i--; // Ajustar índice
             printed++;
