@@ -1,5 +1,5 @@
 // ============================================================
-// 🖨️ PRINT SERVER v2.0 - WebSocket Client
+// 🖨️ PRINT SERVER v3.0 - WebSocket Client + Cola Resiliente
 // ============================================================
 // Se instala en el PC del restaurante.
 // Toda la configuración se hace desde el dashboard web.
@@ -13,6 +13,55 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const PrinterManager = require('./PrinterManager');
+
+// ============================================================
+// COLA LOCAL DE IMPRESIÓN — Reintentos cuando la impresora falla
+// ============================================================
+const QUEUE_PATH = path.join(__dirname, 'print_queue.json');
+const QUEUE_MAX_JOBS = 200;
+const QUEUE_MAX_AGE_MS = 4 * 60 * 60 * 1000; // 4 horas
+const QUEUE_RETRY_INTERVAL_MS = 30 * 1000;    // 30 segundos
+
+function loadQueue() {
+    try {
+        if (fs.existsSync(QUEUE_PATH)) {
+            const data = JSON.parse(fs.readFileSync(QUEUE_PATH, 'utf8'));
+            return Array.isArray(data) ? data : [];
+        }
+    } catch { /* usar vacio */ }
+    return [];
+}
+
+function saveQueue(queue) {
+    try {
+        fs.writeFileSync(QUEUE_PATH, JSON.stringify(queue, null, 2), 'utf8');
+    } catch { /* silenciar */ }
+}
+
+function addToQueue(job) {
+    const queue = loadQueue();
+    // Purgar jobs viejos
+    const now = Date.now();
+    const filtered = queue.filter(j => (now - j.created_at) < QUEUE_MAX_AGE_MS);
+    // Evitar duplicados por comanda_id
+    if (job.comanda_id && filtered.some(j => j.comanda_id === job.comanda_id && j.area === job.area)) {
+        return;
+    }
+    filtered.push({ ...job, created_at: now, retries: 0 });
+    // Limitar tamaño
+    while (filtered.length > QUEUE_MAX_JOBS) filtered.shift();
+    saveQueue(filtered);
+}
+
+function removeFromQueue(index) {
+    const queue = loadQueue();
+    queue.splice(index, 1);
+    saveQueue(queue);
+}
+
+function getQueueSize() {
+    return loadQueue().length;
+}
 
 // ============================================================
 // CONFIGURACION — Lee de config.json (creado desde el dashboard)
@@ -101,6 +150,8 @@ function connectWebSocket() {
         connected = true;
         printerManager.log(`✅ Conectado a la API (socket: ${socket.id})`);
         printerManager.log(`📡 Escuchando eventos del tenant: ${config.tenant_id.substring(0, 8)}...`);
+        // Sync: imprimir comandas pendientes que se perdieron durante desconexión
+        syncPendingPrints();
     });
 
     // ── Recibir zona horaria del tenant (enviada por la API al conectar) ──
@@ -125,6 +176,8 @@ function connectWebSocket() {
     socket.on('reconnect', (attemptNumber) => {
         connected = true;
         printerManager.log(`🔄 Reconectado (intento #${attemptNumber})`);
+        // Sync: imprimir comandas pendientes que se perdieron durante desconexión
+        syncPendingPrints();
     });
 
     // ── Escuchar nuevas comandas ──
@@ -285,27 +338,137 @@ async function handleNuevaComanda(data) {
     const area = normalizeArea(rawArea);
     const esAnulacion = data.tipo_comanda === 'anulacion' || payload.tipo_comanda === 'anulacion';
 
+    // ── PASO 1: ACK — Confirmar recepción (pendiente → recibida) ──
+    await markAsReceived(data.id, data.numero_comanda);
+
     // formatComanda detecta automáticamente tipo_comanda y usa el formato correcto
     const text = printerManager.formatComanda(payload);
 
-    // Imprimir en el área correspondiente (cocina, bar, etc.)
+    // ── PASO 2: Imprimir — Si sale la tirilla, marcar impresa ──
     const success = await printerManager.print(area, text);
 
-    if (success && data.id) {
-        try {
-            const response = await fetch(`${config.api_url}/api/v1/comandas/${data.id}/impresa`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-            });
-            if (response.ok) {
-                const label = esAnulacion ? 'Anulación' : 'Comanda';
-                printerManager.log(`✅ ${label} #${data.numero_comanda} marcada como impresa`);
-            }
-        } catch (err) {
-            printerManager.log(`⚠️ No se pudo marcar como impresa: ${err.message}`);
-        }
+    if (success) {
+        await markAsPrinted(data.id, data.numero_comanda, esAnulacion);
+    } else {
+        // ── PASO 2b: COLA LOCAL — La impresora falló, guardar para reintento ──
+        const label = esAnulacion ? 'Anulación' : 'Comanda';
+        printerManager.log(`🔴 ${label} #${data.numero_comanda} → cola local (${area} offline)`);
+        addToQueue({
+            comanda_id: data.id,
+            numero_comanda: data.numero_comanda,
+            area,
+            text,
+            esAnulacion,
+            tipo: 'comanda',
+        });
+        printerManager.log(`📋 Cola local: ${getQueueSize()} job(s) pendiente(s)`);
     }
 }
+
+async function markAsReceived(comandaId, numeroComanda) {
+    if (!comandaId) return;
+    try {
+        await fetch(`${config.api_url}/api/v1/comandas/ps/${comandaId}/recibida`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        printerManager.log(`📩 Comanda #${numeroComanda} → ACK recibida`);
+    } catch (err) {
+        printerManager.log(`⚠️ No se pudo confirmar recepción: ${err.message}`);
+    }
+}
+
+async function markAsPrinted(comandaId, numeroComanda, esAnulacion = false) {
+    if (!comandaId) return;
+    try {
+        const response = await fetch(`${config.api_url}/api/v1/comandas/ps/${comandaId}/impresa`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        if (response.ok) {
+            const label = esAnulacion ? 'Anulación' : 'Comanda';
+            printerManager.log(`✅ ${label} #${numeroComanda} marcada como impresa`);
+        }
+    } catch (err) {
+        printerManager.log(`⚠️ No se pudo marcar como impresa: ${err.message}`);
+    }
+}
+
+// ============================================================
+// SYNC AL RECONECTAR — Recuperar comandas perdidas
+// ============================================================
+async function syncPendingPrints() {
+    if (!config.tenant_id) return;
+    try {
+        printerManager.log('🔄 Sincronizando comandas pendientes...');
+        const url = `${config.api_url}/api/v1/comandas/ps/pendientes?tenantId=${encodeURIComponent(config.tenant_id)}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+            printerManager.log(`⚠️ Sync falló: HTTP ${response.status}`);
+            return;
+        }
+        const { comandas = [] } = await response.json();
+        if (comandas.length === 0) {
+            printerManager.log('✅ Sin comandas pendientes — todo al día');
+            return;
+        }
+        printerManager.log(`📥 ${comandas.length} comanda(s) pendiente(s) encontrada(s)`);
+        for (const c of comandas) {
+            try {
+                await handleNuevaComanda(c);
+            } catch (err) {
+                printerManager.log(`❌ Error imprimiendo comanda pendiente #${c.numero_comanda}: ${err.message}`);
+            }
+        }
+        printerManager.log('✅ Sync completado');
+    } catch (err) {
+        printerManager.log(`❌ Error en sync: ${err.message}`);
+    }
+}
+
+// ============================================================
+// RETRY LOOP — Reintentar cola local cada 30s
+// ============================================================
+setInterval(async () => {
+    const queue = loadQueue();
+    if (queue.length === 0) return;
+
+    printerManager.log(`🔁 Reintentando cola local: ${queue.length} job(s)...`);
+    const now = Date.now();
+    let printed = 0;
+
+    // Procesar de más antiguo a más nuevo
+    for (let i = 0; i < queue.length; i++) {
+        const job = queue[i];
+
+        // Purgar jobs demasiado viejos
+        if ((now - job.created_at) > QUEUE_MAX_AGE_MS) {
+            printerManager.log(`🗑️ Comanda #${job.numero_comanda} expirada (${Math.round((now - job.created_at) / 60000)} min) — eliminada`);
+            removeFromQueue(i);
+            i--; // Ajustar índice
+            continue;
+        }
+
+        const success = await printerManager.print(job.area, job.text);
+        if (success) {
+            printerManager.log(`✅ Cola: Comanda #${job.numero_comanda} → ${job.area} impresa`);
+            await markAsPrinted(job.comanda_id, job.numero_comanda, job.esAnulacion);
+            removeFromQueue(i);
+            i--; // Ajustar índice
+            printed++;
+        } else {
+            // Actualizar contador de reintentos
+            job.retries = (job.retries || 0) + 1;
+            const q = loadQueue();
+            if (q[i]) { q[i].retries = job.retries; saveQueue(q); }
+            break; // Si una impresora sigue offline, no seguir intentando
+        }
+    }
+
+    if (printed > 0) {
+        printerManager.log(`✅ Cola: ${printed} job(s) impresos. Pendientes: ${getQueueSize()}`);
+    }
+}, QUEUE_RETRY_INTERVAL_MS);
 
 // ============================================================
 // API LOCAL — Dashboard y configuración
@@ -314,16 +477,22 @@ async function handleNuevaComanda(data) {
 // Estado general
 app.get('/status', (req, res) => {
     res.json({
-        server: 'print-server v2.0',
-        mode: 'WebSocket',
+        server: 'print-server v3.0',
+        mode: 'WebSocket + Cola Resiliente',
         api: config.api_url,
         tenant: config.tenant_id || null,
         connected,
         socketId: socket?.id || null,
         uptime: Math.round(process.uptime()),
+        queue_size: getQueueSize(),
+        queue_retry_interval_s: QUEUE_RETRY_INTERVAL_MS / 1000,
         ...printerManager.getStatus(),
     });
 });
+
+// Cola de impresión — ver/limpiar
+app.get('/queue', (req, res) => res.json({ queue: loadQueue() }));
+app.delete('/queue', (req, res) => { saveQueue([]); res.json({ ok: true, mensaje: 'Cola limpiada' }); });
 
 // Obtener configuración actual
 app.get('/config', (req, res) => {
@@ -470,7 +639,7 @@ app.get('/scan-network', async (req, res) => {
 app.listen(PORT, () => {
     console.log('');
     console.log('╔═══════════════════════════════════════════════╗');
-    console.log('║   🖨️  PRINT SERVER v2.0                       ║');
+    console.log('║   🖨️  PRINT SERVER v3.0 — Cola Resiliente       ║');
     console.log('╠═══════════════════════════════════════════════╣');
     console.log(`║  Dashboard:  http://localhost:${PORT}              ║`);
     console.log('║  Toda la configuración se hace desde el       ║');
