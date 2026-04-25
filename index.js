@@ -24,6 +24,9 @@ const QUEUE_MAX_JOBS = 200;
 const QUEUE_MAX_AGE_MS = 4 * 60 * 60 * 1000; // 4 horas
 const QUEUE_RETRY_INTERVAL_MS = 30 * 1000;    // 30 segundos
 
+// Dedup: evitar imprimir la misma comanda más de una vez por sesión
+const printedIds = new Set();
+
 function loadQueue() {
     try {
         if (fs.existsSync(QUEUE_PATH)) {
@@ -329,10 +332,18 @@ function normalizeArea(area) {
     return map[normalized] || normalized;
 }
 
-async function handleNuevaComanda(data) {
+async function handleNuevaComanda(data, { fromSync = false, fromQueue = false } = {}) {
     const payload = typeof data.payload === 'string' ? JSON.parse(data.payload) : data.payload;
     if (!payload) {
         printerManager.log('⚠️ Comanda sin payload');
+        return;
+    }
+
+    // Dedup: no reimprimir la misma comanda en la misma sesión
+    // (excepto si viene del WebSocket directo — reimprimir intencional)
+    const dedupKey = `${data.id}:${data.area_destino || ''}`;
+    if ((fromSync || fromQueue) && printedIds.has(dedupKey)) {
+        printerManager.log(`⏭️ Comanda #${data.numero_comanda} ya impresa en esta sesión — omitida`);
         return;
     }
 
@@ -353,6 +364,9 @@ async function handleNuevaComanda(data) {
     const success = await printerManager.print(area, text);
 
     if (success) {
+        // Registrar como impresa en esta sesión
+        printedIds.add(dedupKey);
+
         // Fire-and-forget — no bloquea
         apiPatch(`/api/v1/comandas/ps/${data.id}/impresa`).then(
             () => {
@@ -446,10 +460,13 @@ async function syncPendingPrints() {
             printerManager.log('✅ Sin comandas pendientes — todo al día');
             return;
         }
-        printerManager.log(`📥 ${comandas.length} comanda(s) pendiente(s) encontrada(s)`);
-        for (const c of comandas) {
+        // Filtrar las que ya están en cola local (evitar doble impresión)
+        const queuedIds = new Set(loadQueue().map(j => j.comanda_id));
+        const nuevas = comandas.filter(c => !queuedIds.has(c.id) && !printedIds.has(`${c.id}:${c.area_destino || ''}`));
+        printerManager.log(`📥 ${comandas.length} pendiente(s), ${nuevas.length} nueva(s) para imprimir`);
+        for (const c of nuevas) {
             try {
-                await handleNuevaComanda(c);
+                await handleNuevaComanda(c, { fromSync: true });
             } catch (err) {
                 printerManager.log(`❌ Error imprimiendo comanda pendiente #${c.numero_comanda}: ${err.message}`);
             }
@@ -483,8 +500,18 @@ setInterval(async () => {
             continue;
         }
 
+        // Dedup: ya impresa en esta sesión (sync pudo haberla impreso)
+        const dedupKey = `${job.comanda_id}:${job.area}`;
+        if (printedIds.has(dedupKey)) {
+            printerManager.log(`⏭️ Cola: Comanda #${job.numero_comanda} ya impresa — eliminada de cola`);
+            removeFromQueue(i);
+            i--;
+            continue;
+        }
+
         const success = await printerManager.print(job.area, job.text);
         if (success) {
+            printedIds.add(dedupKey);
             printerManager.log(`✅ Cola: Comanda #${job.numero_comanda} → ${job.area} impresa`);
             apiPatch(`/api/v1/comandas/ps/${job.comanda_id}/impresa`).catch(() => {});
             removeFromQueue(i);
