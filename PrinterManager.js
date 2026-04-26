@@ -616,6 +616,9 @@ class PrinterManager {
     // PRECUENTA — Verificación de Pedido
     // ══════════════════════════════════════════
     formatPrecuenta(data) {
+        const ESC = '\x1B';
+        const BOLD = ESC + '\x45\x01';
+        const BOLD_OFF = ESC + '\x45\x00';
         const W = 48;
         const lines = [];
         const sep = '-'.repeat(W);
@@ -638,7 +641,7 @@ class PrinterManager {
 
         // Info
         lines.push(`Fecha: ${fecha}        Hora: ${hora}`);
-        lines.push(`${data.mesa_nombre || ('MESA: ' + (data.mesa_numero || ''))}`);
+        lines.push(BOLD + `${data.mesa_nombre || ('MESA: ' + (data.mesa_numero || ''))}` + BOLD_OFF);
         lines.push(`MESERO: ${data.mesero || ''}`);
         lines.push(sep);
 
