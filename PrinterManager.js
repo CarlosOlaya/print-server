@@ -1167,9 +1167,15 @@ class PrinterManager {
         }
 
         // ── Totales ──
+        const totalProductos = Number(data.total_productos ?? data.total_valor) || 0;
+        const descuentoMesa = Number(data.total_descuento_mesa) || 0;
+        const totalCuadre = Number(data.total_cuadre ?? (totalProductos - descuentoMesa)) || 0;
+
         lines.push(sep2);
-        lines.push(BOLD + this._lr('Total items:', `${data.total_items || 0}`, W) + BOLD_OFF);
-        lines.push(BOLD + this._lr('Total valor:', `$${fmt(data.total_valor)}`, W) + BOLD_OFF);
+        lines.push(BOLD + this._lr('Unidades vendidas:', `${data.total_items || 0}`, W) + BOLD_OFF);
+        lines.push(this._lr('Total productos:', `$${fmt(totalProductos)}`, W));
+        lines.push(this._lr('Desc. mesa:', `-$${fmt(descuentoMesa)}`, W));
+        lines.push(BOLD + this._lr('Total cuadre:', `$${fmt(totalCuadre)}`, W) + BOLD_OFF);
         lines.push(sep2);
         lines.push('');
         lines.push(this._center('** SOLO PARA CONTROL INTERNO **', W));
