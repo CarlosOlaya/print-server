@@ -539,6 +539,15 @@ class PrinterManager {
         }
         lines.push(sep2);
         lines.push(this._lr('TOTAL PEDIDO:', `$ ${fmt(factura.total)}`, W));
+
+        // ── Domicilio (solo si recaudo > 0) ──
+        const recaudoDom = Number(factura.recaudo_domicilio_monto) || 0;
+        if (recaudoDom > 0) {
+            lines.push(this._lr('DOMICILIO:', `$${fmt(recaudoDom)}`, W));
+            lines.push(sep2);
+            const totalCliente = Number(factura.total_cliente) || (Number(factura.total) + recaudoDom);
+            lines.push(this._lr('TOTAL A PAGAR:', `$ ${fmt(totalCliente)}`, W));
+        }
         lines.push(sep2);
 
         // ── Sección FORMAS DE PAGO ──
@@ -604,6 +613,22 @@ class PrinterManager {
         }
 
         lines.push(sep);
+
+        // ── Datos de entrega (solo domicilios) ──
+        if (factura.entrega) {
+            const ESC = '\x1B';
+            const BOLD = ESC + '\x45\x01';
+            const BOLD_OFF = ESC + '\x45\x00';
+            lines.push('');
+            lines.push(BOLD + this._center('DATOS DE ENTREGA', W) + BOLD_OFF);
+            lines.push(sep);
+            if (factura.entrega.nombre) lines.push(`Nombre:    ${this._sanitize(factura.entrega.nombre)}`);
+            if (factura.entrega.telefono) lines.push(`Telefono:  ${this._sanitize(factura.entrega.telefono)}`);
+            if (factura.entrega.barrio) lines.push(`Barrio:    ${this._sanitize(factura.entrega.barrio)}`);
+            if (factura.entrega.direccion) lines.push(`Direccion: ${this._sanitize(factura.entrega.direccion)}`);
+            lines.push(sep);
+        }
+
         lines.push('');
         lines.push(this._center('** SOLO PARA CONTROL INTERNO **', W));
         lines.push(this._center('Gracias por su visita!', W));
@@ -720,15 +745,23 @@ class PrinterManager {
 
         lines.push(sep);
 
-
         // Propina sugerida
         const propinaPct = Number(data.porcentaje_propina_sugerida) || 10;
         const propinaMonto = Number(data.propina_sugerida) || Math.round((Number(data.subtotal) || 0) * propinaPct / 100);
+
+        // ── Domicilio (solo si recaudo > 0) ──
+        const recaudoDomPre = Number(data.recaudo_domicilio_monto) || 0;
 
         if (propinaMonto > 0 && !esDelivery) {
             lines.push(this._lr('SERVICIO SUGERIDO ' + `(${propinaPct}%)` + ' :', `$ ${fmt(propinaMonto || 0)}`, W));
             lines.push(sep);
             lines.push(this._lr('TOTAL + SERVICIO:', `$ ${fmt((Number(data.total) || 0) + propinaMonto)}`, W));
+        } else if (recaudoDomPre > 0) {
+            lines.push(this._lr('TOTAL PEDIDO:', `$ ${fmt(data.total)}`, W));
+            lines.push(this._lr('DOMICILIO:', `$${fmt(recaudoDomPre)}`, W));
+            lines.push(sep);
+            const totalClientePre = Number(data.total_cliente) || (Number(data.total) + recaudoDomPre);
+            lines.push(BOLD + this._lr('TOTAL A PAGAR:', `$ ${fmt(totalClientePre)}`, W) + BOLD_OFF);
         } else {
             // El total (sin propina voluntaria)
             lines.push(this._lr('TOTAL A PAGAR:', `$ ${fmt(data.total)}`, W));
@@ -798,6 +831,9 @@ class PrinterManager {
         if (data.cliente.telefono) {
             lines.push(BOLD + 'Telefono: ' + BOLD_OFF + this._sanitize(data.cliente.telefono));
         }
+        if (data.cliente.barrio) {
+            lines.push(BOLD + 'Barrio: ' + BOLD_OFF + this._sanitize(data.cliente.barrio));
+        }
         if (data.cliente.direccion) {
             lines.push(BOLD + 'Direccion: ' + BOLD_OFF + this._sanitize(data.cliente.direccion));
         }
@@ -865,6 +901,16 @@ class PrinterManager {
         lines.push(BOLD + this._lr('TOTAL SERVICIO:', `$${fmt(data.total_propinas)}`, W) + BOLD_OFF);
         lines.push('');
 
+        // ── Anulaciones ──
+        if (data.num_anulaciones > 0 || data.items_anulados > 0) {
+            lines.push(BOLD + 'ANULACIONES' + BOLD_OFF);
+            lines.push(sep);
+            if (data.num_anulaciones > 0) lines.push(this._lr('  Pedidos anulados:', `${data.num_anulaciones}`, W));
+            if (data.monto_anulaciones > 0) lines.push(this._lr('  Monto anulado:', `$${fmt(data.monto_anulaciones)}`, W));
+            if (data.items_anulados > 0) lines.push(this._lr('  Items anulados:', `${data.items_anulados}`, W));
+            lines.push('');
+        }
+
         // ── Total ingreso ──
         const totalIngreso = (Number(data.total_ventas) || 0) + (Number(data.total_propinas) || 0);
         lines.push(sep2);
@@ -883,16 +929,6 @@ class PrinterManager {
             if (totalCort > 0) lines.push(this._lr('  Cortesias:', `-$${fmt(totalCort)}`, W));
             lines.push(sep);
             lines.push(BOLD + this._lr('TOTAL DCTOS:', `-$${fmt(totalDesc + totalCort)}`, W) + BOLD_OFF);
-            lines.push('');
-        }
-
-        // ── Anulaciones ──
-        if (data.num_anulaciones > 0 || data.items_anulados > 0) {
-            lines.push(BOLD + 'ANULACIONES' + BOLD_OFF);
-            lines.push(sep);
-            if (data.num_anulaciones > 0) lines.push(this._lr('  Pedidos anulados:', `${data.num_anulaciones}`, W));
-            if (data.monto_anulaciones > 0) lines.push(this._lr('  Monto anulado:', `$${fmt(data.monto_anulaciones)}`, W));
-            if (data.items_anulados > 0) lines.push(this._lr('  Items anulados:', `${data.items_anulados}`, W));
             lines.push('');
         }
 
@@ -924,6 +960,14 @@ class PrinterManager {
         if (gastosEf > 0) {
             lines.push(this._lr('- Egresos:', `-$${fmt(gastosEf)}`, W));
         }
+        // Domicilios en efectivo (si hay)
+        const dom = data.domicilios;
+        if (dom && dom.recaudado_efectivo > 0) {
+            lines.push(this._lr('+ Domicilio:', `$${fmt(dom.recaudado_efectivo)}`, W));
+        }
+        if (dom && dom.liquidado_efectivo > 0) {
+            lines.push(this._lr('- Liq. domicilio:', `-$${fmt(dom.liquidado_efectivo)}`, W));
+        }
         lines.push(sep);
         lines.push(BOLD + this._lr('Esperado:', `$${fmt(data.efectivo_esperado)}`, W) + BOLD_OFF);
         lines.push(this._lr('Contado:', `$${fmt(data.efectivo_contado)}`, W));
@@ -947,6 +991,28 @@ class PrinterManager {
         if ((data.num_facturas_total || 0) > 0) {
             lines.push(this._lr('Total consecutivos:', `${data.num_facturas_total}`, W));
         }
+
+        // ── Domicilios del turno ──
+        if (dom && dom.total_recaudado > 0) {
+            lines.push(sep2);
+            lines.push(BOLD + 'DOMICILIOS' + BOLD_OFF);
+            lines.push(sep);
+            lines.push(this._lr('Pedidos:', `${dom.num_pedidos}`, W));
+            lines.push(this._lr('Recaudado:', `$${fmt(dom.total_recaudado)}`, W));
+            if (dom.total_liquidado > 0) {
+                lines.push(this._lr('Liquidado:', `-$${fmt(dom.total_liquidado)}`, W));
+            }
+            lines.push(sep);
+            lines.push(BOLD + this._lr('PENDIENTE:', `$${fmt(dom.pendiente)}`, W) + BOLD_OFF);
+            if (dom.liquidaciones && dom.liquidaciones.length > 0) {
+                lines.push('');
+                for (const liq of dom.liquidaciones) {
+                    lines.push(this._lr(`  ${this._sanitize(liq.nombre)}`, `$${fmt(liq.monto)}`, W));
+                    lines.push(`  (${liq.metodo_salida})`);
+                }
+            }
+        }
+
         if (data.observaciones) {
             lines.push(sep);
             lines.push(`Obs: ${this._sanitize(data.observaciones)}`);
